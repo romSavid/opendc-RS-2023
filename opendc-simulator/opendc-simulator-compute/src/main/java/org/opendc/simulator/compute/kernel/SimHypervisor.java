@@ -529,6 +529,7 @@ public final class SimHypervisor implements SimWorkload {
         private final InstantSource clock;
 
         private final List<VCpu> cpus;
+        private final List<VGpu> gpus;
         private final SimAbstractMachine.Memory memory;
         private final List<SimAbstractMachine.NetworkAdapter> net;
         private final List<SimAbstractMachine.StorageDevice> disk;
@@ -582,11 +583,14 @@ public final class SimHypervisor implements SimWorkload {
 
             final MachineModel model = machine.getModel();
             final List<ProcessingUnit> cpuModels = model.getCpus();
-            final Inlet[] muxInlets = new Inlet[cpuModels.size()];
+            final List<ProcessingUnit> gpuModels = model.getGpus();
+            final Inlet[] muxInlets = new Inlet[cpuModels.size() + gpuModels.size()];
             final ArrayList<VCpu> cpus = new ArrayList<>();
+            final ArrayList<VGpu> gpus = new ArrayList<>();
 
             this.muxInlets = muxInlets;
             this.cpus = cpus;
+            this.gpus = gpus;
 
             float capacity = 0.f;
 
@@ -672,6 +676,11 @@ public final class SimHypervisor implements SimWorkload {
         }
 
         @Override
+        public List<? extends SimProcessingUnit> getGpus() {
+            return gpus;
+        }
+
+        @Override
         public SimMemory getMemory() {
             return memory;
         }
@@ -745,7 +754,7 @@ public final class SimHypervisor implements SimWorkload {
     }
 
     /**
-     * A {@link SimProcessingUnit} of a virtual machine.
+     * A CPU {@link SimProcessingUnit} of a virtual machine.
      */
     private static final class VCpu implements SimProcessingUnit {
         private final ProcessingUnit model;
@@ -791,6 +800,57 @@ public final class SimHypervisor implements SimWorkload {
         @Override
         public String toString() {
             return "SimHypervisor.VCpu[model" + model + "]";
+        }
+    }
+
+    /**
+     * A GPU {@link SimProcessingUnit} of a virtual machine.
+     */
+    // TODO: pretty identical to VCpu. Remove if not needed, or leave for future additions
+    private static final class VGpu implements SimProcessingUnit {
+        private final ProcessingUnit model;
+        private final InPort input;
+
+        private VGpu(ProcessingUnit model, InPort input) {
+            this.model = model;
+            this.input = input;
+
+            input.pull((float) model.getFrequency());
+        }
+
+        @Override
+        public double getFrequency() {
+            return input.getCapacity();
+        }
+
+        @Override
+        public void setFrequency(double frequency) {
+            input.pull((float) frequency);
+        }
+
+        @Override
+        public double getDemand() {
+            return input.getDemand();
+        }
+
+        @Override
+        public double getSpeed() {
+            return input.getRate();
+        }
+
+        @Override
+        public ProcessingUnit getModel() {
+            return model;
+        }
+
+        @Override
+        public Inlet getInput() {
+            return input;
+        }
+
+        @Override
+        public String toString() {
+            return "SimHypervisor.VGpu[model" + model + "]";
         }
     }
 

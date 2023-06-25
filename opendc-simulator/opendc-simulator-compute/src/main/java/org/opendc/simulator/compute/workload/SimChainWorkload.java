@@ -129,6 +129,11 @@ final class SimChainWorkload implements SimWorkload {
         }
 
         @Override
+        public List<? extends SimProcessingUnit> getGpus() {
+            return ctx.getGpus();
+        }
+
+        @Override
         public SimMemory getMemory() {
             return ctx.getMemory();
         }

@@ -197,8 +197,10 @@ class CloudGamingIntegrationTest {
         var id = 0
         var timestamp = 0L
         var duration = 0L
-        var cpuCount = 0
+        var cpuCores = 0
         var cpuUsage = 0.0
+        var gpuCores = 0
+        var gpuUsage = 0.0
 
         while (!parser.isClosed) {
             val token = parser.nextValue()
@@ -206,21 +208,25 @@ class CloudGamingIntegrationTest {
                 val builder = fragments.computeIfAbsent(id) { FragmentBuilder() }
                 val deadlineMs = timestamp
                 val timeMs = (timestamp - duration)
-                builder.add(timeMs, deadlineMs, cpuUsage, cpuCount)
+                builder.add(timeMs, deadlineMs, cpuUsage, gpuUsage, cpuCores, gpuCores)
 
                 println("FRAGMENTS\n" +
                     "id $id\n" +
                     "timestamp $timestamp\n" +
                     "duration $duration\n" +
-                    "cpu_count $cpuCount\n" +
-                    "cpu_usage $cpuUsage\n"+
+                    "cpuCores $cpuCores\n" +
+                    "cpuUsage $cpuUsage\n"+
+                    "gpuCores $gpuCores\n"+
+                    "gpuUsage $gpuUsage\n"+
                     "timeMs $timeMs\n"+
                     "deadlineMs $deadlineMs\n")
                 id = 0
                 timestamp = 0L
                 duration = 0
-                cpuCount = 0
+                cpuCores = 0
                 cpuUsage = 0.0
+                gpuCores = 0
+                gpuUsage = 0.0
 
                 continue
             }
@@ -229,13 +235,17 @@ class CloudGamingIntegrationTest {
                 "id" -> id = parser.valueAsInt
                 "timestamp" -> timestamp = parser.valueAsLong
                 "duration" -> duration = parser.valueAsLong
-                "cpu_count" -> cpuCount = parser.valueAsInt
-                "cpu_usage" -> cpuUsage = parser.valueAsDouble
+                "cpuCores" -> cpuCores = parser.valueAsInt
+                "cpuUsage" -> cpuUsage = parser.valueAsDouble
+                "gpuCores" -> gpuCores = parser.valueAsInt
+                "gpuUsage" -> gpuUsage = parser.valueAsDouble
             }
         }
 
         return fragments
     }
+
+    // TODO: taken from ComputeWorkloadLoader. Either use to original, or if there are too many change, move to a new location.
     private fun parseMeta(path: File, fragments: Map<Int, FragmentBuilder>): List<VirtualMachine> {
         val vms = mutableListOf<VirtualMachine>()
         var counter = 0
@@ -246,8 +256,10 @@ class CloudGamingIntegrationTest {
         var id = 0
         var startTime = 0L
         var stopTime = 0L
-        var cpuCount = 0
+        var cpuCores = 0
         var cpuCapacity = 0.0
+        var gpuCores = 0
+        var gpuCapacity = 0.0
         var memCapacity = 0.0
 
         while (!parser.isClosed) {
@@ -259,6 +271,9 @@ class CloudGamingIntegrationTest {
                 val builder = fragments.getValue(id)
                 val totalLoad = builder.totalLoad
                 val uid = UUID.nameUUIDFromBytes("$id-${counter++}".toByteArray())
+
+//                val totalCores = cpuCores + gpuCores // TODO: also here, no idea if this is a smart idea
+//                val
 //                println("adding VM:\n" +
 //                    "UID $uid\n" +
 //                    "ID $id\n" +
@@ -272,8 +287,10 @@ class CloudGamingIntegrationTest {
                     VirtualMachine(
                         uid,
                         id.toString(),
-                        cpuCount,
+                        cpuCores,
                         cpuCapacity,
+                        gpuCores,
+                        gpuCapacity,
                         memCapacity.roundToLong(),
                         totalLoad,
                         Instant.ofEpochMilli(startTime),
@@ -283,18 +300,13 @@ class CloudGamingIntegrationTest {
                     )
                 )
 
-//                println("META\n" +
-//                    "id $id\n" +
-//                    "startTime $startTime\n" +
-//                    "stopTime $stopTime\n" +
-//                    "cpuCount $cpuCount\n" +
-//                    "cpuCapacity $cpuCapacity\n"+
-//                    "memCapacity $memCapacity\n")
                 id = 0
                 startTime = 0L
                 stopTime = 0
-                cpuCount = 0
+                cpuCores = 0
                 cpuCapacity = 0.0
+                gpuCores = 0
+                gpuCapacity = 0.0
                 memCapacity = 0.0
 
                 continue
@@ -302,11 +314,13 @@ class CloudGamingIntegrationTest {
 
             when (parser.currentName) {
                 "id" -> id = parser.valueAsInt
-                "start_time" -> startTime = parser.valueAsLong
-                "stop_time" -> stopTime = parser.valueAsLong
-                "cpu_count" -> cpuCount = parser.valueAsInt
-                "cpu_capacity" -> cpuCapacity = parser.valueAsDouble
-                "mem_capacity" -> memCapacity = parser.valueAsDouble
+                "startTime" -> startTime = parser.valueAsLong
+                "stopTime" -> stopTime = parser.valueAsLong
+                "cpuCores" -> cpuCores = parser.valueAsInt
+                "cpuCapacity" -> cpuCapacity = parser.valueAsDouble
+                "gpuCores" -> gpuCores = parser.valueAsInt
+                "gpuCapacity" -> gpuCapacity = parser.valueAsDouble
+                "memCapacity" -> memCapacity = parser.valueAsDouble
             }
         }
 
@@ -334,20 +348,26 @@ class CloudGamingIntegrationTest {
          *
          * @param timestamp Timestamp at which the fragment starts (in epoch millis).
          * @param deadline Timestamp at which the fragment ends (in epoch millis).
-         * @param usage CPU usage of this fragment.
-         * @param cores Number of cores used.
+         * @param cpuUsage CPU usage of this fragment.
+         * @param gpuUsage GPU usage of this fragment.
+         * @param cpuCores Number of cores used.
+         * @param gpuCores Number of cores used.
          */
         //TODO: change to fit my schema
-        fun add(timestamp: Long, deadline: Long, usage: Double, cores: Int) {
+        fun add(timestamp: Long, deadline: Long, cpuUsage: Double, gpuUsage: Double, cpuCores: Int, gpuCores: Int) {
             val duration = max(0, deadline - timestamp)
-            totalLoad += (usage * duration) / 1000.0 // avg MHz * duration = MFLOPs
+            totalLoad += (cpuUsage * duration) / 1000.0 // avg MHz * duration = MFLOPs
+            totalLoad += (gpuUsage * duration) / 1000.0 // avg MHz * duration = MFLOPs
+
+            val totalCores = cpuCores + gpuCores // TODO: currently I treat all cores together, I assume it'll need to change later
+            val totalUsage = cpuUsage + gpuUsage // TODO: This seems wrong, but this is what I will do for now ):
 
             if (timestamp != previousDeadline) {
                 // There is a gap between the previous and current fragment; fill the gap
-                builder.add(timestamp, 0.0, cores)
+                builder.add(timestamp, 0.0, totalCores)
             }
 
-            builder.add(deadline, usage, cores)
+            builder.add(deadline, totalUsage, totalCores)
             previousDeadline = deadline
         }
 
@@ -400,12 +420,15 @@ class CloudGamingIntegrationTest {
     /**
      * The [CsvSchema] that is used to parse the trace file.
      */
+    // TODO: add explanations to all of the params
     private val fragmentsSchema = CsvSchema.builder()
         .addColumn("id", CsvSchema.ColumnType.NUMBER)
         .addColumn("timestamp", CsvSchema.ColumnType.NUMBER)
         .addColumn("duration", CsvSchema.ColumnType.NUMBER)
-        .addColumn("cpu_count", CsvSchema.ColumnType.NUMBER)
-        .addColumn("cpu_usage", CsvSchema.ColumnType.NUMBER)
+        .addColumn("cpuCores", CsvSchema.ColumnType.NUMBER)
+        .addColumn("cpuUsage", CsvSchema.ColumnType.NUMBER)
+        .addColumn("gpuCores", CsvSchema.ColumnType.NUMBER)
+        .addColumn("gpuUsage", CsvSchema.ColumnType.NUMBER)
         .setAllowComments(true)
         .setUseHeader(true)
         .build()
@@ -413,13 +436,16 @@ class CloudGamingIntegrationTest {
     /**
      * The [CsvSchema] that is used to parse the meta file.
      */
+    // TODO: add explanations to all of the params
     private val metaSchema = CsvSchema.builder()
         .addColumn("id", CsvSchema.ColumnType.NUMBER)
-        .addColumn("start_time", CsvSchema.ColumnType.NUMBER)
-        .addColumn("stop_time", CsvSchema.ColumnType.NUMBER)
-        .addColumn("cpu_count", CsvSchema.ColumnType.NUMBER)
-        .addColumn("cpu_capacity", CsvSchema.ColumnType.NUMBER)
-        .addColumn("mem_capacity", CsvSchema.ColumnType.NUMBER)
+        .addColumn("startTime", CsvSchema.ColumnType.NUMBER)
+        .addColumn("stopTime", CsvSchema.ColumnType.NUMBER)
+        .addColumn("cpuCores", CsvSchema.ColumnType.NUMBER)
+        .addColumn("cpuCapacity", CsvSchema.ColumnType.NUMBER)
+        .addColumn("gpuCores", CsvSchema.ColumnType.NUMBER)
+        .addColumn("gpuCapacity", CsvSchema.ColumnType.NUMBER)
+        .addColumn("memCapacity", CsvSchema.ColumnType.NUMBER)
         .setAllowComments(true)
         .setUseHeader(true)
         .build()

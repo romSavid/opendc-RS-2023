@@ -144,6 +144,12 @@ public abstract class SimAbstractMachine implements SimMachine {
                 graph.disconnect(inlet);
             }
 
+            //  TODO: validate it doesn't break if there are no GPUs
+            for (SimProcessingUnit gpu : getGpus()) {
+                final Inlet inlet = gpu.getInput();
+                graph.disconnect(inlet);
+            }
+
             graph.disconnect(getMemory().getInput());
 
             for (SimNetworkInterface ifx : getNetworkInterfaces()) {

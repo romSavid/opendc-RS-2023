@@ -27,20 +27,26 @@ package org.opendc.experiments.cloudGaming.topology
  *
  * @param id A unique identifier representing the compute cluster.
  * @param name The name of the cluster.
- * @param cpuCount The total number of CPUs in the cluster.
+ * @param cpuCoresCount The total number of CPU cores in the cluster.
  * @param cpuSpeed The speed of a CPU in the cluster in MHz.
+ * @param gpuCoresCount The total number of GPU cores in the cluster.
+ * @param gpuSpeed The speed of a GPU in the cluster in MHz.
  * @param memCapacity The total memory capacity of the cluster (in MiB).
  * @param hostCount The number of hosts in the cluster.
  * @param memCapacityPerHost The memory capacity per host in the cluster (MiB).
- * @param cpuCountPerHost The number of CPUs per host in the cluster.
+ * @param cpuCountPerHost The number of CPU cores per host in the cluster.
+ * @param gpuCountPerHost The number of GPU cores per host in the cluster.
  */
 public data class ClusterSpec(
     val id: String,
     val name: String,
-    val cpuCount: Int,
+    val cpuCoresCount: Int,
     val cpuSpeed: Double,
+    val gpuCoresCount: Int,
+    val gpuSpeed: Double,
     val memCapacity: Double,
     val hostCount: Int,
     val memCapacityPerHost: Double,
-    val cpuCountPerHost: Int
+    val cpuCountPerHost: Int,
+    val gpuCountPerHost: Int
 )

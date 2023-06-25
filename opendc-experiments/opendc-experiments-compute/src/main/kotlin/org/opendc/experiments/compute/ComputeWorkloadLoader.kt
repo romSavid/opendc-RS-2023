@@ -67,6 +67,7 @@ public class ComputeWorkloadLoader(private val baseDir: File) {
     /**
      * Read the fragments into memory.
      */
+    // TODO: add gpu across the class
     private fun parseFragments(trace: Trace): Map<String, Builder> {
         val reader = checkNotNull(trace.getTable(TABLE_RESOURCE_STATES)).newReader()
 
@@ -137,6 +138,8 @@ public class ComputeWorkloadLoader(private val baseDir: File) {
                         id,
                         cpuCount,
                         cpuCapacity,
+                        0,
+                        0.0,
                         memCapacity.roundToLong(),
                         totalLoad,
                         submissionTime,

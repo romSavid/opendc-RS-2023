@@ -1,2 +1,2 @@
-ClusterID;ClusterName;Cores;Speed;Memory;numberOfHosts;memoryCapacityPerHost;coreCountPerHost
-A01;A01;8;3.5;64;1;64;8
+ClusterID;ClusterName;cpuCores;cpuSpeed;gpuCores;gpuSpeed;Memory;numberOfHosts
+A01;A01;8;3.5;7168;1.35;64;1

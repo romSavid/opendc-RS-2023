@@ -53,6 +53,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Benchmark suite for the cloud gaming experiments.
  */
+//TODO: actually implement it according to the cloud gaming tests
 @State(Scope.Thread)
 @Fork(1)
 @Warmup(iterations = 2, time = 5, timeUnit = TimeUnit.SECONDS)
@@ -67,12 +68,12 @@ class CloudGamingBenchmarks {
     @Setup
     fun setUp() {
         val loader = ComputeWorkloadLoader(File("src/test/resources/trace"))
-        vms = trace("bitbrains-small").resolve(loader, Random(1L))
+        vms = trace("myTraces").resolve(loader, Random(1L))
         topology = checkNotNull(object {}.javaClass.getResourceAsStream("/topology.txt")).use { clusterTopology(it) }
     }
 
     @Benchmark
-    fun benchmarkCapelin() = runSimulation {
+    fun benchmarkCloudGaming() = runSimulation {
         val serviceDomain = "compute.opendc.org"
 
         Provisioner(dispatcher, seed = 0).use { provisioner ->
