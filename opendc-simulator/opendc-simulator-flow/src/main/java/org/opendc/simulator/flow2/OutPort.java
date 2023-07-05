@@ -56,6 +56,13 @@ public final class OutPort implements Outlet {
         return stage.parentGraph;
     }
 
+    /**
+     * Return the input of the {@link OutPort}. // TODO: make smarter later
+     */
+    public InPort getInPort() {
+        return input;
+    }
+
     @Override
     public String getName() {
         return name;

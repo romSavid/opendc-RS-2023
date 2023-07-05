@@ -37,6 +37,7 @@ public final class ServiceFlavor implements Flavor {
     private final UUID uid;
     private final String name;
     private final int cpuCount;
+    private final int gpuCount;
     private final long memorySize;
     private final Map<String, String> labels;
     private final Map<String, ?> meta;
@@ -46,6 +47,7 @@ public final class ServiceFlavor implements Flavor {
             UUID uid,
             String name,
             int cpuCount,
+            int gpuCount,
             long memorySize,
             Map<String, String> labels,
             Map<String, ?> meta) {
@@ -53,6 +55,25 @@ public final class ServiceFlavor implements Flavor {
         this.uid = uid;
         this.name = name;
         this.cpuCount = cpuCount;
+        this.gpuCount = gpuCount;
+        this.memorySize = memorySize;
+        this.labels = labels;
+        this.meta = meta;
+    }
+
+    ServiceFlavor(
+        ComputeService service,
+        UUID uid,
+        String name,
+        int cpuCount,
+        long memorySize,
+        Map<String, String> labels,
+        Map<String, ?> meta) {
+        this.service = service;
+        this.uid = uid;
+        this.name = name;
+        this.cpuCount = cpuCount;
+        this.gpuCount = 0;
         this.memorySize = memorySize;
         this.labels = labels;
         this.meta = meta;
@@ -61,6 +82,11 @@ public final class ServiceFlavor implements Flavor {
     @Override
     public int getCpuCount() {
         return cpuCount;
+    }
+
+    @Override
+    public int getGpuCount() {
+        return gpuCount;
     }
 
     @Override

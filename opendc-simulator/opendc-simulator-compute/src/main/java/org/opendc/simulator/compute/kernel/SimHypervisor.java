@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.SplittableRandom;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.opendc.simulator.compute.SimAbstractMachine;
 import org.opendc.simulator.compute.SimMachine;
 import org.opendc.simulator.compute.SimMachineContext;
@@ -81,10 +83,10 @@ public final class SimHypervisor implements SimWorkload {
      * @param interferenceDomain The interference domain to which the hypervisor belongs.
      */
     private SimHypervisor(
-            FlowMultiplexerFactory muxFactory,
-            SplittableRandom random,
-            ScalingGovernorFactory scalingGovernorFactory,
-            VmInterferenceDomain interferenceDomain) {
+        FlowMultiplexerFactory muxFactory,
+        SplittableRandom random,
+        ScalingGovernorFactory scalingGovernorFactory,
+        VmInterferenceDomain interferenceDomain) {
         this.muxFactory = muxFactory;
         this.random = random;
         this.scalingGovernorFactory = scalingGovernorFactory;
@@ -100,10 +102,10 @@ public final class SimHypervisor implements SimWorkload {
      * @param interferenceDomain The interference domain to which the hypervisor belongs.
      */
     public static SimHypervisor create(
-            FlowMultiplexerFactory muxFactory,
-            SplittableRandom random,
-            ScalingGovernorFactory scalingGovernorFactory,
-            VmInterferenceDomain interferenceDomain) {
+        FlowMultiplexerFactory muxFactory,
+        SplittableRandom random,
+        ScalingGovernorFactory scalingGovernorFactory,
+        VmInterferenceDomain interferenceDomain) {
         return new SimHypervisor(muxFactory, random, scalingGovernorFactory, interferenceDomain);
     }
 
@@ -115,7 +117,7 @@ public final class SimHypervisor implements SimWorkload {
      * @param scalingGovernorFactory The factory for the scaling governor to use for scaling the CPU frequency.
      */
     public static SimHypervisor create(
-            FlowMultiplexerFactory muxFactory, SplittableRandom random, ScalingGovernorFactory scalingGovernorFactory) {
+        FlowMultiplexerFactory muxFactory, SplittableRandom random, ScalingGovernorFactory scalingGovernorFactory) {
         return create(muxFactory, random, scalingGovernorFactory, new VmInterferenceDomain());
     }
 
@@ -180,7 +182,20 @@ public final class SimHypervisor implements SimWorkload {
             return 0.0;
         }
 
-        return context.previousCapacity;
+        return context.previousCpuCapacity;
+    }
+
+    /**
+     * Return the GPU capacity of the hypervisor in MHz.
+     */
+    public double getGpuCapacity() {
+        final Context context = activeContext;
+
+        if (context == null) {
+            return 0.0;
+        }
+
+        return context.previousGpuCapacity;
     }
 
     /**
@@ -193,7 +208,20 @@ public final class SimHypervisor implements SimWorkload {
             return 0.0;
         }
 
-        return context.previousDemand;
+        return context.previousCpuDemand;
+    }
+
+    /**
+     * The GPU demand of the hypervisor in MHz.
+     */
+    public double getGpuDemand() {
+        final Context context = activeContext;
+
+        if (context == null) {
+            return 0.0;
+        }
+
+        return context.previousGpuDemand;
     }
 
     /**
@@ -206,7 +234,20 @@ public final class SimHypervisor implements SimWorkload {
             return 0.0;
         }
 
-        return context.previousRate;
+        return context.previousCpuRate;
+    }
+
+    /**
+     * The CPU usage of the hypervisor in MHz.
+     */
+    public double getGpuUsage() {
+        final Context context = activeContext;
+
+        if (context == null) {
+            return 0.0;
+        }
+
+        return context.previousGpuRate;
     }
 
     /**
@@ -219,9 +260,12 @@ public final class SimHypervisor implements SimWorkload {
             return false;
         }
 
-        final FlowMultiplexer multiplexer = context.multiplexer;
-        return (multiplexer.getMaxInputs() - multiplexer.getInputCount())
-                >= model.getCpus().size();
+        final FlowMultiplexer cpuMultiplexer = context.cpuMultiplexer;
+        final FlowMultiplexer gpuMultiplexer = context.gpuMultiplexer;
+//        + (gpuMultiplexer.getMaxInputs() - gpuMultiplexer.getInputCount())
+//        + model.getGpus().size()
+        return ((cpuMultiplexer.getMaxInputs() - cpuMultiplexer.getInputCount()) >= model.getCpus().size())
+            && ((gpuMultiplexer.getMaxInputs() - gpuMultiplexer.getInputCount()) >= model.getGpus().size()); // TODO: added gpus here, make sure it makes sense
     }
 
     @Override
@@ -250,48 +294,67 @@ public final class SimHypervisor implements SimWorkload {
      */
     private static final class Context implements FlowStageLogic {
         private final SimMachineContext ctx;
-        private final FlowMultiplexer multiplexer;
+        private final FlowMultiplexer cpuMultiplexer;
+        private final FlowMultiplexer gpuMultiplexer;
         private final FlowStage stage;
         private final List<ScalingGovernor> scalingGovernors;
         private final InstantSource clock;
         private final HvCounters counters;
 
         private long lastCounterUpdate;
-        private final double d;
-        private float previousDemand;
-        private float previousRate;
-        private float previousCapacity;
+//        private final double d;
+        private final double cpuD;
+        private final double gpuD;
+        private float previousCpuDemand;
+        private float previousGpuDemand;
+        private float previousCpuRate;
+        private float previousGpuRate;
+        private float previousCpuCapacity;
+        private float previousGpuCapacity;
 
         private Context(
-                SimMachineContext ctx,
-                FlowMultiplexerFactory muxFactory,
-                ScalingGovernorFactory scalingGovernorFactory,
-                HvCounters counters) {
+            SimMachineContext ctx,
+            FlowMultiplexerFactory muxFactory,
+            ScalingGovernorFactory scalingGovernorFactory,
+            HvCounters counters) {
 
             this.ctx = ctx;
             this.counters = counters;
 
             final FlowGraph graph = ctx.getGraph();
-            this.multiplexer = muxFactory.newMultiplexer(graph);
+            this.cpuMultiplexer = muxFactory.newMultiplexer(graph);
+            this.gpuMultiplexer = muxFactory.newMultiplexer(graph);
             this.stage = graph.newStage(this);
             this.clock = graph.getEngine().getClock();
 
             this.lastCounterUpdate = clock.millis();
 
             if (scalingGovernorFactory != null) {
-                this.scalingGovernors = ctx.getCpus().stream()
-                        .map(cpu -> scalingGovernorFactory.newGovernor(new ScalingPolicyImpl(cpu)))
-                        .collect(Collectors.toList());
+                this.scalingGovernors = Stream.concat(
+                    ctx.getCpus().stream().map(cpu -> scalingGovernorFactory.newGovernor(new ScalingPolicyImpl(cpu))),
+                    ctx.getGpus().stream().map(gpu -> scalingGovernorFactory.newGovernor(new ScalingPolicyImpl(gpu))) // TODO: verify it works
+                ).collect(Collectors.toList());
             } else {
                 this.scalingGovernors = Collections.emptyList();
             }
 
+            // TODO: I'm trying to make make this include both CPU and GPU, no idea if that makes sense. Leaving the original stuff here for now
             float cpuCapacity = 0.f;
             final List<? extends SimProcessingUnit> cpus = ctx.getCpus();
             for (SimProcessingUnit cpu : cpus) {
                 cpuCapacity += cpu.getFrequency();
             }
-            this.d = cpus.size() / cpuCapacity;
+//            this.cpuD = cpus.size() / cpuCapacity;
+
+            float gpuCapacity = 0.f;
+            final List<? extends SimProcessingUnit> gpus = ctx.getGpus();
+            for (SimProcessingUnit gpu : gpus) {
+                gpuCapacity += gpu.getFrequency();
+            }
+//            this.gpuD = gpus.size() / gpuCapacity;
+
+            this.cpuD = cpus.size() / cpuCapacity; // TODO: verify it's ok
+            this.gpuD = gpus.size() / gpuCapacity;
         }
 
         /**
@@ -299,10 +362,14 @@ public final class SimHypervisor implements SimWorkload {
          */
         void start() {
             final FlowGraph graph = ctx.getGraph();
-            final FlowMultiplexer multiplexer = this.multiplexer;
+            final FlowMultiplexer cpuMultiplexer = this.cpuMultiplexer;
+            final FlowMultiplexer gpuMultiplexer = this.gpuMultiplexer;
 
             for (SimProcessingUnit cpu : ctx.getCpus()) {
-                graph.connect(multiplexer.newOutput(), cpu.getInput());
+                graph.connect(cpuMultiplexer.newOutput(), cpu.getInput());
+            }
+            for (SimProcessingUnit gpu : ctx.getGpus()) {
+                graph.connect(gpuMultiplexer.newOutput(), gpu.getInput());
             }
 
             for (ScalingGovernor governor : scalingGovernors) {
@@ -340,15 +407,26 @@ public final class SimHypervisor implements SimWorkload {
             if (delta > 0) {
                 final HvCounters counters = this.counters;
 
-                float demand = previousDemand;
-                float rate = previousRate;
-                float capacity = previousCapacity;
+                float cpuDemand = previousCpuDemand;
+                float cpuRate = previousCpuRate;
+                float cpuCapacity = previousCpuCapacity;
 
-                final double factor = this.d * delta;
+                float gpuDemand = previousGpuDemand;
+                float gpuRate = previousGpuRate;
+                float gpuCapacity = previousGpuCapacity;
 
-                counters.cpuActiveTime += Math.round(rate * factor);
-                counters.cpuIdleTime += Math.round((capacity - rate) * factor);
-                counters.cpuStealTime += Math.round((demand - rate) * factor);
+//                final double cpuFactor = this.cpuD * delta;
+//                final double gpuFactor = this.gpuD * delta;
+                final double cpuFactor = this.cpuD * delta;
+                final double gpuFactor = this.gpuD * delta;
+
+                // TODO: the counters are named cpu but include overall details. Should I change?
+                counters.cpuActiveTime += Math.round(cpuRate * cpuFactor);
+                counters.gpuActiveTime += Math.round(gpuRate * gpuFactor);
+                counters.cpuIdleTime += Math.round((cpuCapacity - cpuRate) * cpuFactor);
+                counters.gpuIdleTime += Math.round((gpuCapacity - gpuRate) * gpuFactor);
+                counters.cpuStealTime += Math.round((cpuDemand - cpuRate) * cpuFactor);
+                counters.gpuStealTime += Math.round((gpuDemand - gpuRate) * gpuFactor);
             }
         }
 
@@ -363,18 +441,27 @@ public final class SimHypervisor implements SimWorkload {
         public long onUpdate(FlowStage ctx, long now) {
             updateCounters(now);
 
-            final FlowMultiplexer multiplexer = this.multiplexer;
+            final FlowMultiplexer cpuMultiplexer = this.cpuMultiplexer;
+            final FlowMultiplexer gpuMultiplexer = this.gpuMultiplexer;
             final List<ScalingGovernor> scalingGovernors = this.scalingGovernors;
 
-            float demand = multiplexer.getDemand();
-            float rate = multiplexer.getRate();
-            float capacity = multiplexer.getCapacity();
+            float cpuDemand = cpuMultiplexer.getDemand();
+            float cpuRate = cpuMultiplexer.getRate();
+            float cpuCapacity = cpuMultiplexer.getCapacity();
 
-            this.previousDemand = demand;
-            this.previousRate = rate;
-            this.previousCapacity = capacity;
+            float gpuDemand = gpuMultiplexer.getDemand();
+            float gpuRate = gpuMultiplexer.getRate();
+            float gpuCapacity = gpuMultiplexer.getCapacity();
 
-            double load = rate / Math.min(1.0, capacity);
+            this.previousCpuDemand = cpuDemand;
+            this.previousCpuRate = cpuRate;
+            this.previousCpuCapacity = cpuCapacity;
+
+            this.previousGpuDemand = gpuDemand;
+            this.previousGpuRate = gpuRate;
+            this.previousGpuCapacity = gpuCapacity;
+
+            double load = cpuRate / Math.min(1.0, cpuCapacity); // TODO: is it ok to only use on CPU
 
             if (!scalingGovernors.isEmpty()) {
                 for (ScalingGovernor governor : scalingGovernors) {
@@ -446,7 +533,17 @@ public final class SimHypervisor implements SimWorkload {
                 return 0.0;
             }
 
-            return context.previousDemand;
+            return context.previousCpuDemand;
+        }
+
+        public double getGpuDemand() {
+            final VmContext context = (VmContext) getActiveContext();
+
+            if (context == null) {
+                return 0.0;
+            }
+
+            return context.previousGpuDemand;
         }
 
         @Override
@@ -457,7 +554,17 @@ public final class SimHypervisor implements SimWorkload {
                 return 0.0;
             }
 
-            return context.usage;
+            return context.cpuUsage;
+        }
+
+        public double getGpuUsage() {
+            final VmContext context = (VmContext) getActiveContext();
+
+            if (context == null) {
+                return 0.0;
+            }
+
+            return context.gpuUsage;
         }
 
         @Override
@@ -468,7 +575,17 @@ public final class SimHypervisor implements SimWorkload {
                 return 0.0;
             }
 
-            return context.previousCapacity;
+            return context.previousCpuCapacity;
+        }
+
+        public double getGpuCapacity() {
+            final VmContext context = (VmContext) getActiveContext();
+
+            if (context == null) {
+                return 0.0;
+            }
+
+            return context.previousGpuCapacity;
         }
 
         @Override
@@ -478,7 +595,7 @@ public final class SimHypervisor implements SimWorkload {
 
         @Override
         protected Context createContext(
-                SimWorkload workload, Map<String, Object> meta, Consumer<Exception> completion) {
+            SimWorkload workload, Map<String, Object> meta, Consumer<Exception> completion) {
             if (isClosed) {
                 throw new IllegalStateException("Virtual machine does not exist anymore");
             }
@@ -489,15 +606,15 @@ public final class SimHypervisor implements SimWorkload {
             }
 
             return new VmContext(
-                    context,
-                    this,
-                    random,
-                    interferenceDomain,
-                    counters,
-                    SimHypervisor.this.counters,
-                    workload,
-                    meta,
-                    completion);
+                context,
+                this,
+                random,
+                interferenceDomain,
+                counters,
+                SimHypervisor.this.counters,
+                workload,
+                meta,
+                completion);
         }
 
         @Override
@@ -525,7 +642,8 @@ public final class SimHypervisor implements SimWorkload {
         private final HvCounters hvCounters;
         private final VmInterferenceMember interferenceMember;
         private final FlowStage stage;
-        private final FlowMultiplexer multiplexer;
+        private final FlowMultiplexer cpuMultiplexer;
+        private final FlowMultiplexer gpuMultiplexer;
         private final InstantSource clock;
 
         private final List<VCpu> cpus;
@@ -534,28 +652,35 @@ public final class SimHypervisor implements SimWorkload {
         private final List<SimAbstractMachine.NetworkAdapter> net;
         private final List<SimAbstractMachine.StorageDevice> disk;
 
-        private final Inlet[] muxInlets;
+        private final Inlet[] cpuMuxInlets;
+        private final Inlet[] gpuMuxInlets; // TODO: does it make sense to seperate?
         private long lastUpdate;
         private long lastCounterUpdate;
-        private final double d;
+        private final double cpuD;
+        private final double gpuD;
 
-        private float demand;
-        private float usage;
-        private float capacity;
+        private float cpuDemand;
+        private float gpuDemand;
+        private float cpuUsage;
+        private float gpuUsage;
+        private float cpuCapacity;
+        private float gpuCapacity;
 
-        private float previousDemand;
-        private float previousCapacity;
+        private float previousCpuDemand;
+        private float previousGpuDemand;
+        private float previousCpuCapacity;
+        private float previousGpuCapacity;
 
         private VmContext(
-                Context context,
-                VirtualMachine machine,
-                SplittableRandom random,
-                VmInterferenceDomain interferenceDomain,
-                VmCounters vmCounters,
-                HvCounters hvCounters,
-                SimWorkload workload,
-                Map<String, Object> meta,
-                Consumer<Exception> completion) {
+            Context context,
+            VirtualMachine machine,
+            SplittableRandom random,
+            VmInterferenceDomain interferenceDomain,
+            VmCounters vmCounters,
+            HvCounters hvCounters,
+            SimWorkload workload,
+            Map<String, Object> meta,
+            Consumer<Exception> completion) {
             super(machine, workload, meta, completion);
 
             this.context = context;
@@ -578,42 +703,70 @@ public final class SimHypervisor implements SimWorkload {
             this.lastUpdate = clock.millis();
             this.lastCounterUpdate = clock.millis();
 
-            final FlowMultiplexer multiplexer = context.multiplexer;
-            this.multiplexer = multiplexer;
+            final FlowMultiplexer cpuMultiplexer = context.cpuMultiplexer;
+            final FlowMultiplexer gpuMultiplexer = context.gpuMultiplexer;
+            this.cpuMultiplexer = cpuMultiplexer;
+            this.gpuMultiplexer = gpuMultiplexer;
 
             final MachineModel model = machine.getModel();
             final List<ProcessingUnit> cpuModels = model.getCpus();
             final List<ProcessingUnit> gpuModels = model.getGpus();
-            final Inlet[] muxInlets = new Inlet[cpuModels.size() + gpuModels.size()];
+            final Inlet[] cpuMuxInlets = new Inlet[cpuModels.size()];
+            final Inlet[] gpuMuxInlets = new Inlet[gpuModels.size()];
             final ArrayList<VCpu> cpus = new ArrayList<>();
             final ArrayList<VGpu> gpus = new ArrayList<>();
 
-            this.muxInlets = muxInlets;
+            this.cpuMuxInlets = cpuMuxInlets;
+            this.gpuMuxInlets = gpuMuxInlets;
             this.cpus = cpus;
             this.gpus = gpus;
 
-            float capacity = 0.f;
+            float cpuCapacity = 0.f;
+            float gpuCapacity = 0.f;
 
             for (int i = 0; i < cpuModels.size(); i++) {
-                final Inlet muxInlet = multiplexer.newInput();
-                muxInlets[i] = muxInlet;
+                final Inlet muxInlet = cpuMultiplexer.newInput();
+                cpuMuxInlets[i] = muxInlet;
 
                 final InPort input = stage.getInlet("cpu" + i);
-                final OutPort output = stage.getOutlet("mux" + i);
+                final OutPort output = stage.getOutlet("cpuMux" + i);
 
                 final Handler handler = new Handler(this, input, output);
                 input.setHandler(handler);
                 output.setHandler(handler);
 
                 final ProcessingUnit cpuModel = cpuModels.get(i);
-                capacity += cpuModel.getFrequency();
+                cpuCapacity += cpuModel.getFrequency();
 
                 final VCpu cpu = new VCpu(cpuModel, input);
                 cpus.add(cpu);
 
                 graph.connect(output, muxInlet);
             }
-            this.d = cpuModels.size() / capacity;
+
+            for (int i = 0; i < gpuModels.size(); i++) {
+                final Inlet muxInlet = gpuMultiplexer.newInput();
+                gpuMuxInlets[i] = muxInlet;
+
+                final InPort input = stage.getInlet("gpu" + i);
+                final OutPort output = stage.getOutlet("gpuMux" + i);
+
+                final Handler handler = new Handler(this, input, output);
+                input.setHandler(handler);
+                output.setHandler(handler);
+
+                final ProcessingUnit gpuModel = gpuModels.get(i);
+                gpuCapacity += gpuModel.getFrequency();
+
+                final VGpu gpu = new VGpu(gpuModel, input);
+                gpus.add(gpu);
+
+                graph.connect(output, muxInlet);
+            }
+
+            // TODO: here we have the same issue as before. not sure if this accumilated capacity makes sense and if this effing d makes sense
+            this.cpuD = cpuModels.size() / cpuCapacity;
+            this.gpuD = gpuModels.size() / gpuCapacity;
 
             this.memory = new SimAbstractMachine.Memory(graph, model.getMemory());
 
@@ -645,16 +798,27 @@ public final class SimHypervisor implements SimWorkload {
             if (delta > 0) {
                 final VmCounters counters = this.vmCounters;
 
-                float demand = this.previousDemand;
-                float rate = this.usage;
-                float capacity = this.previousCapacity;
+                float cpuDemand = this.previousCpuDemand;
+                float cpuRate = this.cpuUsage;
+                float cpuCapacity = this.previousCpuCapacity;
 
-                final double factor = this.d * delta;
-                final double active = rate * factor;
+                float gpuDemand = this.previousGpuDemand;
+                float gpuRate = this.gpuUsage;
+                float gpuCapacity = this.previousGpuCapacity;
 
-                counters.cpuActiveTime += Math.round(active);
-                counters.cpuIdleTime += Math.round((capacity - rate) * factor);
-                counters.cpuStealTime += Math.round((demand - rate) * factor);
+                final double cpuFactor = this.cpuD * delta;
+                final double gpuFactor = this.gpuD * delta;
+
+                final double cpuAtiveTime = cpuRate * cpuFactor;
+                final double gpuAtiveTime = gpuRate * gpuFactor;
+
+                counters.cpuActiveTime += Math.round(cpuAtiveTime);
+                counters.cpuIdleTime += Math.round((cpuCapacity - cpuRate) * cpuFactor);
+                counters.cpuStealTime += Math.round((cpuDemand - cpuRate) * cpuFactor);
+
+                counters.gpuActiveTime += Math.round(gpuAtiveTime);
+                counters.gpuIdleTime += Math.round((gpuCapacity - gpuRate) * gpuFactor);
+                counters.gpuStealTime += Math.round((gpuDemand - gpuRate) * gpuFactor);
             }
         }
 
@@ -697,13 +861,21 @@ public final class SimHypervisor implements SimWorkload {
 
         @Override
         public long onUpdate(FlowStage ctx, long now) {
-            float usage = 0.f;
-            for (Inlet inlet : muxInlets) {
-                usage += ((InPort) inlet).getRate();
+            float cpuUsage = 0.f;
+            float gpuUsage = 0.f;
+            for (Inlet inlet : cpuMuxInlets) {
+                cpuUsage += ((InPort) inlet).getRate();
             }
-            this.usage = usage;
-            this.previousDemand = demand;
-            this.previousCapacity = capacity;
+            for (Inlet inlet : gpuMuxInlets) {
+                gpuUsage += ((InPort) inlet).getRate();
+            }
+            this.cpuUsage = cpuUsage;
+            this.previousCpuDemand = cpuDemand;
+            this.previousCpuCapacity = cpuCapacity;
+
+            this.gpuUsage = gpuUsage;
+            this.previousGpuDemand = gpuDemand;
+            this.previousGpuCapacity = gpuCapacity;
 
             long lastUpdate = this.lastUpdate;
             this.lastUpdate = now;
@@ -711,19 +883,29 @@ public final class SimHypervisor implements SimWorkload {
 
             if (delta > 0) {
                 final VmInterferenceMember interferenceMember = this.interferenceMember;
-                double penalty = 0.0;
+                double cpuPenalty = 0.0; // TODO: feels exces to duplicate everything, but will do for now
+                double gpuPenalty = 0.0;
 
                 if (interferenceMember != null) {
-                    final FlowMultiplexer multiplexer = this.multiplexer;
-                    double load = multiplexer.getRate() / Math.min(1.0, multiplexer.getCapacity());
-                    penalty = 1 - interferenceMember.apply(random, load);
+                    final FlowMultiplexer cpuMultiplexer = this.cpuMultiplexer;
+                    double cpuLoad = cpuMultiplexer.getRate() / Math.min(1.0, cpuMultiplexer.getCapacity());
+                    cpuPenalty = 1 - interferenceMember.apply(random, cpuLoad);
+
+                    final FlowMultiplexer gpuMultiplexer = this.gpuMultiplexer;
+                    double gpuLoad = gpuMultiplexer.getRate() / Math.min(1.0, gpuMultiplexer.getCapacity());
+                    gpuPenalty = 1 - interferenceMember.apply(random, gpuLoad);
                 }
 
-                final double factor = this.d * delta;
-                final long lostTime = Math.round(factor * usage * penalty);
+                final double cpuFactor = this.cpuD * delta;
+                final double gpuFactor = this.gpuD * delta;
 
-                this.vmCounters.cpuLostTime += lostTime;
-                this.hvCounters.cpuLostTime += lostTime;
+                final long cpuLostTime = Math.round(cpuFactor * cpuUsage * cpuPenalty);
+                final long gpuLostTime = Math.round(gpuFactor * gpuUsage * gpuPenalty);
+
+                this.vmCounters.cpuLostTime += cpuLostTime;
+                this.vmCounters.gpuLostTime += gpuLostTime;
+                this.hvCounters.cpuLostTime += cpuLostTime;
+                this.hvCounters.gpuLostTime += gpuLostTime;
             }
 
             // Invalidate the FlowStage of the hypervisor to update its counters (via onUpdate)
@@ -741,9 +923,14 @@ public final class SimHypervisor implements SimWorkload {
 
             stage.close();
 
-            final FlowMultiplexer multiplexer = this.multiplexer;
-            for (Inlet muxInlet : muxInlets) {
-                multiplexer.releaseInput(muxInlet);
+            final FlowMultiplexer cpuMultiplexer = this.cpuMultiplexer;
+            for (Inlet muxInlet : cpuMuxInlets) {
+                cpuMultiplexer.releaseInput(muxInlet);
+            }
+
+            final FlowMultiplexer gpuMultiplexer = this.gpuMultiplexer;
+            for (Inlet muxInlet : gpuMuxInlets) {
+                gpuMultiplexer.releaseInput(muxInlet);
             }
 
             final VmInterferenceMember interferenceMember = this.interferenceMember;
@@ -870,15 +1057,23 @@ public final class SimHypervisor implements SimWorkload {
 
         @Override
         public void onPush(InPort port, float demand) {
-            context.demand += -port.getDemand() + demand;
-
+            if (port.getName().contains("gpu")) {
+                context.gpuDemand += -port.getDemand() + demand;
+            }
+            else {
+                context.cpuDemand += -port.getDemand() + demand;
+            }
             output.push(demand);
         }
 
         @Override
         public void onUpstreamFinish(InPort port, Throwable cause) {
-            context.demand -= port.getDemand();
-
+            if (port.getName().contains("gpu")) {
+                context.gpuDemand -= port.getDemand();
+            }
+            else {
+                context.cpuDemand -= port.getDemand();
+            }
             output.push(0.f);
         }
 
@@ -889,15 +1084,23 @@ public final class SimHypervisor implements SimWorkload {
 
         @Override
         public void onPull(OutPort port, float capacity) {
-            context.capacity += -port.getCapacity() + capacity;
-
+            if (port.getName().contains("gpu")) {
+                context.gpuCapacity += -port.getCapacity() + capacity;
+            }
+            else{
+                context.cpuCapacity += -port.getCapacity() + capacity;
+            }
             input.pull(capacity);
         }
 
         @Override
         public void onDownstreamFinish(OutPort port, Throwable cause) {
-            context.capacity -= port.getCapacity();
-
+            if (port.getName().contains("gpu")) {
+                context.gpuCapacity -= port.getCapacity();
+            }
+            else{
+                context.cpuCapacity -= port.getCapacity();
+            }
             input.pull(0.f);
         }
     }
@@ -905,15 +1108,26 @@ public final class SimHypervisor implements SimWorkload {
     /**
      * Implementation of {@link SimHypervisorCounters} for the hypervisor.
      */
+    // TODO: Currently, I didn't implement gpu times because we only use one multiplexer, change later?
+        // TODO2: Now using 2 multiplexsrts, hopefully this is fine
     private class HvCounters implements SimHypervisorCounters {
         private long cpuActiveTime;
+        private long gpuActiveTime;
         private long cpuIdleTime;
+        private long gpuIdleTime;
         private long cpuStealTime;
+        private long gpuStealTime;
         private long cpuLostTime;
+        private long gpuLostTime;
 
         @Override
         public long getCpuActiveTime() {
             return cpuActiveTime;
+        }
+
+        @Override
+        public long getGpuActiveTime() {
+            return gpuActiveTime;
         }
 
         @Override
@@ -922,13 +1136,28 @@ public final class SimHypervisor implements SimWorkload {
         }
 
         @Override
+        public long getGpuIdleTime() {
+            return gpuIdleTime;
+        }
+
+        @Override
         public long getCpuStealTime() {
             return cpuStealTime;
         }
 
         @Override
+        public long getGpuStealTime() {
+            return gpuStealTime;
+        }
+
+        @Override
         public long getCpuLostTime() {
             return cpuLostTime;
+        }
+
+        @Override
+        public long getGpuLostTime() {
+            return gpuLostTime;
         }
 
         @Override
@@ -947,9 +1176,13 @@ public final class SimHypervisor implements SimWorkload {
     private static class VmCounters implements SimHypervisorCounters {
         private final VirtualMachine vm;
         private long cpuActiveTime;
+        private long gpuActiveTime;
         private long cpuIdleTime;
+        private long gpuIdleTime;
         private long cpuStealTime;
+        private long gpuStealTime;
         private long cpuLostTime;
+        private long gpuLostTime;
 
         private VmCounters(VirtualMachine vm) {
             this.vm = vm;
@@ -961,8 +1194,18 @@ public final class SimHypervisor implements SimWorkload {
         }
 
         @Override
+        public long getGpuActiveTime() {
+            return gpuActiveTime;
+        }
+
+        @Override
         public long getCpuIdleTime() {
             return cpuIdleTime;
+        }
+
+        @Override
+        public long getGpuIdleTime() {
+            return gpuIdleTime;
         }
 
         @Override
@@ -971,8 +1214,18 @@ public final class SimHypervisor implements SimWorkload {
         }
 
         @Override
+        public long getGpuStealTime() {
+            return gpuStealTime;
+        }
+
+        @Override
         public long getCpuLostTime() {
             return cpuLostTime;
+        }
+
+        @Override
+        public long getGpuLostTime() {
+            return gpuLostTime;
         }
 
         @Override

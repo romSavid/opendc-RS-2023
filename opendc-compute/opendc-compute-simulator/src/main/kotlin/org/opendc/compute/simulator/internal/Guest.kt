@@ -156,6 +156,24 @@ internal class Guest(
     }
 
     /**
+     * Obtain the GPU statistics of this guest.
+     */
+    fun getGpuStats(): GuestCpuStats { // TODO: Create GuestGpuStats?
+        val counters = machine.counters
+        counters.sync()
+
+        return GuestCpuStats(
+            counters.gpuActiveTime / 1000L,
+            counters.gpuIdleTime / 1000L,
+            counters.gpuStealTime / 1000L,
+            counters.gpuLostTime / 1000L,
+            machine.gpuCapacity,
+            machine.gpuUsage,
+            machine.gpuUsage / _gpuLimit
+        )
+    }
+
+    /**
      * The [SimMachineContext] representing the current active virtual machine instance or `null` if no virtual machine
      * is active.
      */
@@ -219,6 +237,7 @@ internal class Guest(
     private var _lastReport = clock.millis()
     private var _bootTime: Instant? = null
     private val _cpuLimit = machine.model.cpus.sumOf { it.frequency }
+    private val _gpuLimit = machine.model.gpus.sumOf { it.frequency }
 
     /**
      * Helper function to track the uptime and downtime of the guest.

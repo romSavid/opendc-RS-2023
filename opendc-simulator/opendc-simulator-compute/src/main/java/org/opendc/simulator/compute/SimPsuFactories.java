@@ -251,7 +251,8 @@ public class SimPsuFactories {
 
         private double cpuTargetFreq;
         private double gpuTargetFreq;
-        private double totalUsage;
+        private double cpuTotalUsage;
+        private double gpuTotalUsage;
         private long lastUpdate;
 
         private double powerUsage;
@@ -260,12 +261,24 @@ public class SimPsuFactories {
         private final InHandler handler = new InHandler() {
             @Override
             public void onPush(InPort port, float demand) {
-                totalUsage += -port.getDemand() + demand;
+                if (port.getName().contains("gpu")) {
+                    gpuTotalUsage += -port.getDemand() + demand;
+                    System.out.println("SimPsuFactories - gpuTotalUsage: " + gpuTotalUsage + ",port.getDemand: " + port.getDemand() + ",demand: " + demand);
+                }
+                else {
+                    cpuTotalUsage += -port.getDemand() + demand;
+                    System.out.println("SimPsuFactories - cpuTotalUsage: " + cpuTotalUsage + ",port.getDemand: " + port.getDemand() + ",demand: " + demand);
+                }
             }
 
             @Override
             public void onUpstreamFinish(InPort port, Throwable cause) {
-                totalUsage -= port.getDemand();
+                if (port.getName().contains("gpu")) {
+                    gpuTotalUsage -= port.getDemand();
+                }
+                else {
+                    cpuTotalUsage -= port.getDemand();
+                }
             }
         };
 
@@ -282,7 +295,8 @@ public class SimPsuFactories {
 
         @Override
         public double getPowerDemand() {
-            return totalUsage;
+            return cpuTotalUsage + gpuTotalUsage; // TODO: See what makes sense here
+//            return totalUsage;
         }
 
         @Override
@@ -331,12 +345,20 @@ public class SimPsuFactories {
         @Override
         public long onUpdate(FlowStage ctx, long now) {
             updateEnergyUsage(now);
+            System.out.println("SimPsuFactories - cpuTotalUsage: " + cpuTotalUsage + ", cpuTargetFreq: " + cpuTargetFreq);
+            System.out.println("SimPsuFactories - gpuTotalUsage: " + gpuTotalUsage + ", gpuTargetFreq: " + gpuTargetFreq);
 
-            double cpuUsage = cpuPowerModel.computePower(totalUsage / cpuTargetFreq);
-            double gpuUsage = gpuPowerModel.computePower(totalUsage / gpuTargetFreq); // TODO: when another port is addded, we'll use different usage and freq for GPU and CPU
-            double usage = cpuUsage + gpuUsage;
-            out.push((float) usage);
-            powerUsage = usage;
+            double cpuUsage = cpuPowerModel.computePower(cpuTotalUsage / cpuTargetFreq);
+            double gpuUsage = gpuPowerModel.computePower(gpuTotalUsage / gpuTargetFreq);
+
+            double totalUsage = cpuUsage + gpuUsage;
+
+            System.out.println("SimPsuFactories - cpuUsage: " + cpuUsage + ", cpuTargetFreq: " + cpuTargetFreq);
+            System.out.println("SimPsuFactories - gpuUsage: " + gpuUsage + ", gpuTargetFreq: " + gpuTargetFreq);
+            System.out.println("SimPsuFactories - totalUsage :" + totalUsage);
+
+            out.push((float) totalUsage); // TODO: verify for both out.push and powerUsage if we really want to have totalUsage, or something else
+            powerUsage = totalUsage;
 
             return Long.MAX_VALUE;
         }

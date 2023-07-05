@@ -52,8 +52,8 @@ private val reader = ClusterSpecReader()
  */
 fun clusterTopology(
     file: File,
-    cpuPowerModel: CpuPowerModel = CpuPowerModels.linear(350.0, 200.0),
-    gpuPowerModel: GpuPowerModel = GpuPowerModels.linear(350.0, 200.0),
+    cpuPowerModel: CpuPowerModel = CpuPowerModels.linear(330.0, 60.0), // Based on i9 from https://www.reddit.com/r/Amd/comments/10evt0z/ryzen_vs_intels_idle_power_consumption_whole/
+    gpuPowerModel: GpuPowerModel = GpuPowerModels.linear(350.0, 170.0), // TODO: numbers should probably be different
     random: RandomGenerator = SplittableRandom(0)
 ): List<HostSpec> {
     return clusterTopology(reader.read(file), cpuPowerModel, gpuPowerModel, random)
@@ -64,8 +64,8 @@ fun clusterTopology(
  */
 fun clusterTopology(
     input: InputStream,
-    cpuPowerModel: CpuPowerModel = CpuPowerModels.linear(350.0, 200.0),
-    gpuPowerModel: GpuPowerModel = GpuPowerModels.linear(350.0, 200.0),
+    cpuPowerModel: CpuPowerModel = CpuPowerModels.linear(330.0, 60.0),
+    gpuPowerModel: GpuPowerModel = GpuPowerModels.linear(350.0, 170.0), // TODO: numbers should probably be different
     random: RandomGenerator = SplittableRandom(0)
 ): List<HostSpec> {
     return clusterTopology(reader.read(input), cpuPowerModel, gpuPowerModel, random)

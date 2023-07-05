@@ -125,6 +125,16 @@ class CloudGamingIntegrationTest {
                 "energyUse=${monitor.energyUsage} " +
                 "upTime=${monitor.uptime}"
         )
+
+        println(
+            "Results:" +
+                "downTime=${monitor.downtime} " +
+                "cpuLimit=${monitor.cpuLimit} " +
+                "cpuUsage=${monitor.cpuUsage} " +
+                "cpuDemand=${monitor.cpuDemand} " +
+                "cpuUtilization=${monitor.cpuUtilization} " +
+                "powerUsage=${monitor.powerUsage}"
+        )
     }
 
     /**
@@ -136,12 +146,16 @@ class CloudGamingIntegrationTest {
         val tracesDir = "genTraces"
         val usersPerHour = listOf(10, 15, 12, 10)
 
+        // a New graphics card for the experiment
+        val gpu = GraphicsCard(2560, 1550.0)
+        // generate new topology
+        CloudGamingTopologyGenerator.generateTopologyTxt(2, 16, 3.5, gpu, 4, 128, 8, "testTopo")
         // generate new trace
-        CloudGamingTraceGenerator.generateTraceCsv(4, usersPerHour, 1, 1500.0, 3500.0, 8000, tracesDir)
+        CloudGamingTraceGenerator.generateTraceCsv(4, usersPerHour, 1, 1500.0, 3500.0, 1280, 1200.0, 1550.0, 8000, tracesDir)
 
         val seed = 1L
         val workload = getWorkload(tracesDir)
-        val topology = createTopology("genTopo")
+        val topology = createTopology("testTopo")
         val monitor = monitor
 
         Provisioner(dispatcher, seed).use { provisioner ->
@@ -172,6 +186,16 @@ class CloudGamingIntegrationTest {
                 "lostTime=${monitor.lostTime} " +
                 "energyUse=${monitor.energyUsage} " +
                 "upTime=${monitor.uptime}"
+        )
+
+        println(
+            "Results:" +
+                "downTime=${monitor.downtime} " +
+                "cpuLimit=${monitor.cpuLimit} " +
+                "cpuUsage=${monitor.cpuUsage} " +
+                "cpuDemand=${monitor.cpuDemand} " +
+                "cpuUtilization=${monitor.cpuUtilization} " +
+                "powerUsage=${monitor.powerUsage}"
         )
     }
 
@@ -210,16 +234,16 @@ class CloudGamingIntegrationTest {
                 val timeMs = (timestamp - duration)
                 builder.add(timeMs, deadlineMs, cpuUsage, gpuUsage, cpuCores, gpuCores)
 
-                println("FRAGMENTS\n" +
-                    "id $id\n" +
-                    "timestamp $timestamp\n" +
-                    "duration $duration\n" +
-                    "cpuCores $cpuCores\n" +
-                    "cpuUsage $cpuUsage\n"+
-                    "gpuCores $gpuCores\n"+
-                    "gpuUsage $gpuUsage\n"+
-                    "timeMs $timeMs\n"+
-                    "deadlineMs $deadlineMs\n")
+//                println("FRAGMENTS\n" +
+//                    "id $id\n" +
+//                    "timestamp $timestamp\n" +
+//                    "duration $duration\n" +
+//                    "cpuCores $cpuCores\n" +
+//                    "cpuUsage $cpuUsage\n"+
+//                    "gpuCores $gpuCores\n"+
+//                    "gpuUsage $gpuUsage\n"+
+//                    "timeMs $timeMs\n"+
+//                    "deadlineMs $deadlineMs\n")
                 id = 0
                 timestamp = 0L
                 duration = 0
@@ -356,18 +380,16 @@ class CloudGamingIntegrationTest {
         //TODO: change to fit my schema
         fun add(timestamp: Long, deadline: Long, cpuUsage: Double, gpuUsage: Double, cpuCores: Int, gpuCores: Int) {
             val duration = max(0, deadline - timestamp)
+            // TODO: This is probably not right. Not sure what is totalLoad and what are we supposed to do with it. check later.
             totalLoad += (cpuUsage * duration) / 1000.0 // avg MHz * duration = MFLOPs
             totalLoad += (gpuUsage * duration) / 1000.0 // avg MHz * duration = MFLOPs
 
-            val totalCores = cpuCores + gpuCores // TODO: currently I treat all cores together, I assume it'll need to change later
-            val totalUsage = cpuUsage + gpuUsage // TODO: This seems wrong, but this is what I will do for now ):
-
             if (timestamp != previousDeadline) {
                 // There is a gap between the previous and current fragment; fill the gap
-                builder.add(timestamp, 0.0, totalCores)
+                builder.add(timestamp, 0.0, 0.0, cpuCores, gpuCores)
             }
 
-            builder.add(deadline, totalUsage, totalCores)
+            builder.add(deadline, cpuUsage, gpuUsage, cpuCores, gpuCores)
             previousDeadline = deadline
         }
 
@@ -406,6 +428,12 @@ class CloudGamingIntegrationTest {
         var lostTime = 0L
         var energyUsage = 0.0
         var uptime = 0L
+        var downtime = 0L
+        var cpuLimit = 0.0
+        var cpuUsage = 0.0
+        var cpuDemand = 0.0
+        var cpuUtilization = 0.0
+        var powerUsage = 0.0
 
         override fun record(reader: HostTableReader) {
             idleTime += reader.cpuIdleTime
@@ -414,6 +442,12 @@ class CloudGamingIntegrationTest {
             lostTime += reader.cpuLostTime
             energyUsage += reader.powerTotal
             uptime += reader.uptime
+            downtime += reader.downtime
+            cpuLimit += reader.cpuLimit
+            cpuUsage += reader.cpuUsage
+            cpuDemand += reader.cpuDemand
+            cpuUtilization += reader.cpuUtilization
+            powerUsage += reader.powerUsage
         }
     }
 

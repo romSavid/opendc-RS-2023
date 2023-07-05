@@ -98,6 +98,8 @@ public class SimHost(
     private val model: HostModel = HostModel(
         machine.model.cpus.sumOf { it.frequency },
         machine.model.cpus.size,
+        machine.model.gpus.sumOf { it.frequency }, // TODO: I still don't get why frquency/capacity is a sum. I don't get how it works
+        machine.model.gpus.size,
         machine.model.memory.sumOf { it.size }
     )
 
@@ -145,9 +147,10 @@ public class SimHost(
     override fun canFit(server: Server): Boolean {
         val sufficientMemory = model.memoryCapacity >= server.flavor.memorySize
         val enoughCpus = model.cpuCount >= server.flavor.cpuCount
+        val enoughGpus = model.gpuCount >= server.flavor.gpuCount
         val canFit = hypervisor.canFit(server.flavor.toMachineModel())
 
-        return sufficientMemory && enoughCpus && canFit
+        return sufficientMemory && enoughCpus && enoughGpus && canFit
     }
 
     override fun spawn(server: Server) {
@@ -259,9 +262,30 @@ public class SimHost(
         )
     }
 
+    public fun getGpuStats(): HostCpuStats { // TODO: create HostGpuStats and remove stats that are irrelevant (also from the counters probably, like gpuStealTime?)
+        val counters = hypervisor.counters
+        counters.sync()
+
+        return HostCpuStats(
+            counters.gpuActiveTime / 1000L,
+            counters.gpuIdleTime / 1000L,
+            counters.gpuStealTime / 1000L,
+            counters.gpuLostTime / 1000L,
+            hypervisor.gpuCapacity,
+            hypervisor.gpuDemand,
+            hypervisor.gpuUsage,
+            hypervisor.gpuUsage / _gpuLimit
+        )
+    }
+
     override fun getCpuStats(server: Server): GuestCpuStats {
         val guest = requireNotNull(guests[server]) { "Unknown server ${server.uid} at host $uid" }
         return guest.getCpuStats()
+    }
+
+    public fun getGpuStats(server: Server): GuestCpuStats { // TODO: Create guestGpuStats?
+        val guest = requireNotNull(guests[server]) { "Unknown server ${server.uid} at host $uid" }
+        return guest.getGpuStats()
     }
 
     override fun hashCode(): Int = uid.hashCode()
@@ -346,9 +370,16 @@ public class SimHost(
         val cpuCapacity = (this.meta["cpu-capacity"] as? Double ?: Double.MAX_VALUE).coerceAtMost(originalCpu.frequency)
         val processingNode = ProcessingNode(originalNode.vendor, originalNode.modelName, originalNode.architecture, cpuCount)
         val processingUnits = (0 until cpuCount).map { ProcessingUnit(processingNode, it, cpuCapacity) }
+
+        val originalGpu = machine.model.gpus[0] // TODO: need to add a check if not empty?
+        val originalGpuNode = originalGpu.node
+        val gpuCapacity = (this.meta["gpu-capacity"] as? Double ?: Double.MAX_VALUE).coerceAtMost(originalGpu.frequency) // TODO: this gpu-capacity part makes me think I need to change my meta pasring
+        val gpuProcessingNode = ProcessingNode(originalGpuNode.vendor, originalGpuNode.modelName, originalGpuNode.architecture, gpuCount)
+        val gpuProcessingUnits = (0 until gpuCount).map { ProcessingUnit(gpuProcessingNode, it, gpuCapacity) }
+
         val memoryUnits = listOf(MemoryUnit("Generic", "Generic", 3200.0, memorySize))
 
-        val model = MachineModel(processingUnits, memoryUnits)
+        val model = MachineModel(processingUnits, gpuProcessingUnits, memoryUnits)
         return if (optimize) model.optimize() else model
     }
 
@@ -357,6 +388,7 @@ public class SimHost(
     private var _downtime = 0L
     private var _bootTime: Instant? = null
     private val _cpuLimit = machine.model.cpus.sumOf { it.frequency }
+    private val _gpuLimit = machine.model.gpus.sumOf { it.frequency }
 
     /**
      * Helper function to track the uptime of a machine.

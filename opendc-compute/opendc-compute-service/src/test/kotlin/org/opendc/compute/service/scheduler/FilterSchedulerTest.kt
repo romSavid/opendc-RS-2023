@@ -236,12 +236,12 @@ internal class FilterSchedulerTest {
         val hostA = mockk<HostView>()
         every { hostA.host.state } returns HostState.UP
         every { hostA.host.model } returns HostModel(4 * 2600.0, 4, 2048)
-        every { hostA.provisionedCores } returns 3
+        every { hostA.provisionedCpuCores } returns 3
 
         val hostB = mockk<HostView>()
         every { hostB.host.state } returns HostState.UP
         every { hostB.host.model } returns HostModel(4 * 2600.0, 4, 2048)
-        every { hostB.provisionedCores } returns 0
+        every { hostB.provisionedCpuCores } returns 0
 
         scheduler.addHost(hostA)
         scheduler.addHost(hostB)
@@ -263,7 +263,7 @@ internal class FilterSchedulerTest {
         val host = mockk<HostView>()
         every { host.host.state } returns HostState.UP
         every { host.host.model } returns HostModel(4 * 2600.0, 4, 2048)
-        every { host.provisionedCores } returns 0
+        every { host.provisionedCpuCores } returns 0
 
         scheduler.addHost(host)
 
@@ -345,13 +345,13 @@ internal class FilterSchedulerTest {
         every { hostA.host.state } returns HostState.UP
         every { hostA.host.model } returns HostModel(4 * 2600.0, 4, 2048)
         every { hostA.host.instances } returns emptySet()
-        every { hostA.provisionedCores } returns 3
+        every { hostA.provisionedCpuCores } returns 3
 
         val hostB = mockk<HostView>()
         every { hostB.host.state } returns HostState.UP
         every { hostB.host.model } returns HostModel(4 * 2600.0, 4, 2048)
         every { hostB.host.instances } returns setOf(serverA)
-        every { hostB.provisionedCores } returns 0
+        every { hostB.provisionedCpuCores } returns 0
 
         scheduler.addHost(hostA)
         scheduler.addHost(hostB)
@@ -384,13 +384,13 @@ internal class FilterSchedulerTest {
         every { hostA.host.state } returns HostState.UP
         every { hostA.host.model } returns HostModel(4 * 2600.0, 4, 2048)
         every { hostA.host.instances } returns setOf(serverA)
-        every { hostA.provisionedCores } returns 3
+        every { hostA.provisionedCpuCores } returns 3
 
         val hostB = mockk<HostView>()
         every { hostB.host.state } returns HostState.UP
         every { hostB.host.model } returns HostModel(4 * 2600.0, 4, 2048)
         every { hostB.host.instances } returns emptySet()
-        every { hostB.provisionedCores } returns 0
+        every { hostB.provisionedCpuCores } returns 0
 
         scheduler.addHost(hostA)
         scheduler.addHost(hostB)
@@ -471,12 +471,12 @@ internal class FilterSchedulerTest {
         val hostA = mockk<HostView>()
         every { hostA.host.state } returns HostState.UP
         every { hostA.host.model } returns HostModel(4 * 2600.0, 4, 2048)
-        every { hostA.provisionedCores } returns 2
+        every { hostA.provisionedCpuCores } returns 2
 
         val hostB = mockk<HostView>()
         every { hostB.host.state } returns HostState.UP
         every { hostB.host.model } returns HostModel(4 * 2600.0, 4, 2048)
-        every { hostB.provisionedCores } returns 0
+        every { hostB.provisionedCpuCores } returns 0
 
         scheduler.addHost(hostA)
         scheduler.addHost(hostB)

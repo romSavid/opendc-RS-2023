@@ -96,8 +96,9 @@ public suspend fun ComputeService.replay(
                         client.newFlavor(
                             entry.name,
                             entry.cpuCount,
+                            entry.gpuCount,
                             entry.memCapacity,
-                            meta = if (entry.cpuCapacity > 0.0) mapOf("cpu-capacity" to entry.cpuCapacity) else emptyMap()
+                            meta = if (entry.cpuCapacity > 0.0) mapOf("cpu-capacity" to entry.cpuCapacity) else emptyMap() // TODO: should I add gpu here?
                         ),
                         meta = meta
                     )

@@ -206,7 +206,8 @@ public final class SimTrace {
             // TODO: this should be enough for all columns, but test and make sure
             if (size == cpuUsageCol.length) {
                 grow();
-                cpuUsageCol = this.cpuUsageCol;
+                cpuUsageCol = this.cpuUsageCol; // TODO: not clear why this is done here, maybe remove
+                gpuUsageCol = this.gpuUsageCol;
             }
 
             deadlineCol[size] = deadline;
@@ -237,7 +238,8 @@ public final class SimTrace {
             // TODO: this should be enough for all columns, but test and make sure
             if (size == cpuUsageCol.length) {
                 grow();
-                cpuUsageCol = this.cpuUsageCol;
+                cpuUsageCol = this.cpuUsageCol; // TODO: not clear why this is done here, maybe remove
+                gpuUsageCol = this.gpuUsageCol;
             }
 
             deadlineCol[size] = deadline;
@@ -533,7 +535,7 @@ public final class SimTrace {
                 final OutPort output = stage.getOutlet("gpu" + i);
 
                 graph.connect(output, gpu.getInput());
-                cpuOutputs[i] = output;
+                gpuOutputs[i] = output;
             }
         }
 
