@@ -263,11 +263,11 @@ public class SimPsuFactories {
             public void onPush(InPort port, float demand) {
                 if (port.getName().contains("gpu")) {
                     gpuTotalUsage += -port.getDemand() + demand;
-                    System.out.println("SimPsuFactories - gpuTotalUsage: " + gpuTotalUsage + ",port.getDemand: " + port.getDemand() + ",demand: " + demand);
+//                    System.out.println("SimPsuFactories - gpuTotalUsage: " + gpuTotalUsage + ",port.getDemand: " + port.getDemand() + ",demand: " + demand);
                 }
                 else {
                     cpuTotalUsage += -port.getDemand() + demand;
-                    System.out.println("SimPsuFactories - cpuTotalUsage: " + cpuTotalUsage + ",port.getDemand: " + port.getDemand() + ",demand: " + demand);
+//                    System.out.println("SimPsuFactories - cpuTotalUsage: " + cpuTotalUsage + ",port.getDemand: " + port.getDemand() + ",demand: " + demand);
                 }
             }
 
@@ -345,17 +345,17 @@ public class SimPsuFactories {
         @Override
         public long onUpdate(FlowStage ctx, long now) {
             updateEnergyUsage(now);
-            System.out.println("SimPsuFactories - cpuTotalUsage: " + cpuTotalUsage + ", cpuTargetFreq: " + cpuTargetFreq);
-            System.out.println("SimPsuFactories - gpuTotalUsage: " + gpuTotalUsage + ", gpuTargetFreq: " + gpuTargetFreq);
+//            System.out.println("SimPsuFactories - cpuTotalUsage: " + cpuTotalUsage + ", cpuTargetFreq: " + cpuTargetFreq);
+//            System.out.println("SimPsuFactories - gpuTotalUsage: " + gpuTotalUsage + ", gpuTargetFreq: " + gpuTargetFreq);
 
             double cpuUsage = cpuPowerModel.computePower(cpuTotalUsage / cpuTargetFreq);
             double gpuUsage = gpuPowerModel.computePower(gpuTotalUsage / gpuTargetFreq);
 
             double totalUsage = cpuUsage + gpuUsage;
 
-            System.out.println("SimPsuFactories - cpuUsage: " + cpuUsage + ", cpuTargetFreq: " + cpuTargetFreq);
-            System.out.println("SimPsuFactories - gpuUsage: " + gpuUsage + ", gpuTargetFreq: " + gpuTargetFreq);
-            System.out.println("SimPsuFactories - totalUsage :" + totalUsage);
+//            System.out.println("SimPsuFactories - cpuUsage: " + cpuUsage + ", cpuTargetFreq: " + cpuTargetFreq);
+//            System.out.println("SimPsuFactories - gpuUsage: " + gpuUsage + ", gpuTargetFreq: " + gpuTargetFreq);
+//            System.out.println("SimPsuFactories - totalUsage :" + totalUsage);
 
             out.push((float) totalUsage); // TODO: verify for both out.push and powerUsage if we really want to have totalUsage, or something else
             powerUsage = totalUsage;

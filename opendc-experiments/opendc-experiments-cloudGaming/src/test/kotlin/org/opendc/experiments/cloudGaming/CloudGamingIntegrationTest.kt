@@ -199,6 +199,64 @@ class CloudGamingIntegrationTest {
         )
     }
 
+    @Test
+    fun testBasicRun() = runSimulation {
+
+        val tracesDir = "xcloud-trace"
+//        val usersPerHour = listOf(23454, 23438, 22608, 20648, 18228, 16121, 15079, 14475, 13902, 13821,
+//            14014, 14871, 16859, 18973, 21268, 23725, 25575, 26880, 28135, 28866, 28096, 26084, 24258, 23429)
+
+        val usersPerHour = listOf(2345, 2343, 2260, 2064, 1822, 1612, 1507, 1447, 1390, 1382,
+            1401, 1487, 1685, 1897, 2126, 2372, 2557, 2688, 2813, 2886, 2809, 2608, 2425, 2342)
+
+        ExperimentGenerator.generateExperiment("xcloud", 0.30, 0.25, 24, usersPerHour)
+
+        val seed = 1L
+        val workload = getWorkload(tracesDir)
+        val topology = createTopology("xcloud-topology")
+        val monitor = monitor
+
+        Provisioner(dispatcher, seed).use { provisioner ->
+            provisioner.runSteps(
+                setupComputeService(serviceDomain = "compute.opendc.org", { computeScheduler }),
+                registerComputeMonitor(serviceDomain = "compute.opendc.org", monitor),
+                setupHosts(serviceDomain = "compute.opendc.org", topology)
+            )
+
+            val service = provisioner.registry.resolve("compute.opendc.org", ComputeService::class.java)!!
+            service.replay(timeSource, workload, seed)
+        }
+
+        println(
+            "Scheduler " +
+                "Success=${monitor.attemptsSuccess} " +
+                "Failure=${monitor.attemptsFailure} " +
+                "Error=${monitor.attemptsError} " +
+                "Pending=${monitor.serversPending} " +
+                "Active=${monitor.serversActive}"
+        )
+
+        println(
+            "Results:" +
+                "idleTime=${monitor.idleTime} " +
+                "activeTime=${monitor.activeTime} " +
+                "stealTime=${monitor.stealTime} " +
+                "lostTime=${monitor.lostTime} " +
+                "energyUse=${monitor.energyUsage} " +
+                "upTime=${monitor.uptime}"
+        )
+
+        println(
+            "Results:" +
+                "downTime=${monitor.downtime} " +
+                "cpuLimit=${monitor.cpuLimit} " +
+                "cpuUsage=${monitor.cpuUsage} " +
+                "cpuDemand=${monitor.cpuDemand} " +
+                "cpuUtilization=${monitor.cpuUtilization} " +
+                "powerUsage=${monitor.powerUsage}"
+        )
+    }
+
     private val baseDir: File = File("src/test/resources/trace")
 
     private fun getWorkload(workloadDir: String) : List<VirtualMachine> {
