@@ -17,7 +17,7 @@ object CloudGamingTraceGenerator {
      * @param cpuCount The number of CPU cores that is provisioned for each VM.
      * @param cpuUsage The cpu usage of every vm (TODO: make it more flexiable later?).
      * @param cpuCap The cpu capacity in Mhz
-     * @param gpuCount The number of GPU cores that is provisioned for each VM.
+     * @param gpuCount The number of vGPUs that is provisioned for each VM. For now it will always be one
      * @param gpuUsage The GPU usage of every VM.
      * @param gpuCap The GPU capacity in MHz.
      * @param memCap The cpu memory capacity in MiB
@@ -29,7 +29,7 @@ object CloudGamingTraceGenerator {
         cpuCount: Int,
         cpuUsage: Double,
         cpuCap: Double,
-        gpuCount: Int,
+        gpuCount: Int = 1,
         gpuUsage: Double,
         gpuCap: Double,
         memCap: Long,
@@ -53,7 +53,7 @@ object CloudGamingTraceGenerator {
         // Write trace entries to CSV file
         val file = baseDir.resolve("$outputDir/trace.csv")
         file.bufferedWriter().use { writer ->
-            writer.write("id,timestamp,duration,cpuCores,cpuUsage,gpuCores,gpuUsage\n")
+            writer.write("id,timestamp,duration,cpuCores,cpuUsage,gpuCount,gpuUsage\n")
             for (entry in traceEntries) {
                 writer.write("${entry.id},${entry.timestamp},${entry.duration},${entry.cpuCount},${entry.cpuUsage},${entry.gpuCount},${entry.gpuUsage}\n")
             }
@@ -89,7 +89,7 @@ object CloudGamingTraceGenerator {
         // Write meta rows to CSV file
         val file = baseDir.resolve("$outputDir/meta.csv")
         file.bufferedWriter().use { writer ->
-            writer.write("id,startTime,stopTime,cpuCores,cpuCapacity,gpuCores,gpuCapacity,memCapacity")
+            writer.write("id,startTime,stopTime,cpuCores,cpuCapacity,gpuCount,gpuCapacity,memCapacity")
             writer.newLine()
 
             metaRows.forEach { row ->

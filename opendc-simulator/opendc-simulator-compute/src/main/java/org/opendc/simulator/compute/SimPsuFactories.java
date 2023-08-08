@@ -24,6 +24,7 @@ package org.opendc.simulator.compute;
 
 import java.time.InstantSource;
 import org.jetbrains.annotations.NotNull;
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit;
 import org.opendc.simulator.compute.model.ProcessingUnit;
 import org.opendc.simulator.compute.power.CpuPowerModel;
 import org.opendc.simulator.compute.power.GpuPowerModel;
@@ -114,7 +115,7 @@ public class SimPsuFactories {
 
         // NoopPsu has no GPU support
         @Override
-        InPort getGpuPower(int id, ProcessingUnit model) {
+        InPort getGpuPower(int id, GraphicsProcessingUnit model) {
             return null;
         }
 
@@ -195,7 +196,7 @@ public class SimPsuFactories {
 
         // SimplePsu has no GPU support
         @Override
-        InPort getGpuPower(int id, ProcessingUnit model) {
+        InPort getGpuPower(int id, GraphicsProcessingUnit model) {
             //TODO: this breaks the Capelin tests, and probably more, fix.
             return null;
         }
@@ -320,7 +321,7 @@ public class SimPsuFactories {
         }
 
         @Override
-        InPort getGpuPower(int id, ProcessingUnit model) {
+        InPort getGpuPower(int id, GraphicsProcessingUnit model) {
             gpuTargetFreq += model.getFrequency();
 
             final InPort port = stage.getInlet("gpu" + id);

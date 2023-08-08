@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.opendc.simulator.compute.device.SimPeripheral;
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit;
 import org.opendc.simulator.compute.model.MachineModel;
 import org.opendc.simulator.compute.model.ProcessingUnit;
 import org.opendc.simulator.compute.workload.SimWorkload;
@@ -89,7 +90,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
         for (ProcessingUnit cpu : model.getCpus()) {
             cpus.add(new Cpu(psu, cpu, cpuIndex++));
         }
-        for (ProcessingUnit gpu : model.getGpus()) {
+        for (GraphicsProcessingUnit gpu : model.getGpus()) {
             gpus.add(new Gpu(psu, gpu, gpuIndex++));
         }
 
@@ -177,7 +178,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
 
         float capacity = 0.f;
 
-        for (SimProcessingUnit gpu : context.gpus) {
+        for (SimGraphicsProcessingUnit gpu : context.gpus) {
             capacity += gpu.getFrequency();
         }
 
@@ -204,7 +205,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
     }
 
     /**
-     * The CPU demand of the machine in MHz.
+     * The GPU demand of the machine in MHz.
      */
     public double getGpuDemand() {
         final Context context = (Context) getActiveContext();
@@ -215,7 +216,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
 
         float demand = 0.f;
 
-        for (SimProcessingUnit gpu : context.gpus) {
+        for (SimGraphicsProcessingUnit gpu : context.gpus) {
             demand += gpu.getDemand();
         }
 
@@ -253,7 +254,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
 
         float rate = 0.f;
 
-        for (SimProcessingUnit gpu : context.gpus) {
+        for (SimGraphicsProcessingUnit gpu : context.gpus) {
             rate += gpu.getSpeed();
         }
 
@@ -303,7 +304,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
         }
 
         @Override
-        public List<? extends SimProcessingUnit> getGpus() {
+        public List<? extends SimGraphicsProcessingUnit> getGpus() {
             return gpus;
         }
 
@@ -378,15 +379,15 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
     }
 
     /**
-     * A GPU {@link SimProcessingUnit} of a bare-metal machine.
+     * A GPU {@link SimGraphicsProcessingUnit} of a bare-metal machine.
      */
     // TODO: Might be redundent as it changes almost nothing about Cpu. Check.
-    private static final class Gpu implements SimProcessingUnit {
+    private static final class Gpu implements SimGraphicsProcessingUnit {
         private final SimPsu psu;
-        private final ProcessingUnit model;
+        private final GraphicsProcessingUnit model;
         private final InPort port;
 
-        private Gpu(SimPsu psu, ProcessingUnit model, int id) {
+        private Gpu(SimPsu psu, GraphicsProcessingUnit model, int id) {
             this.psu = psu;
             this.model = model;
             this.port = psu.getGpuPower(id, model);
@@ -417,7 +418,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
         }
 
         @Override
-        public ProcessingUnit getModel() {
+        public GraphicsProcessingUnit getModel() {
             return model;
         }
 

@@ -39,6 +39,7 @@ import org.opendc.compute.simulator.internal.GuestListener
 import org.opendc.simulator.compute.SimBareMetalMachine
 import org.opendc.simulator.compute.SimMachineContext
 import org.opendc.simulator.compute.kernel.SimHypervisor
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit
 import org.opendc.simulator.compute.model.MachineModel
 import org.opendc.simulator.compute.model.MemoryUnit
 import org.opendc.simulator.compute.model.ProcessingNode
@@ -98,8 +99,7 @@ public class SimHost(
     private val model: HostModel = HostModel(
         machine.model.cpus.sumOf { it.frequency },
         machine.model.cpus.size,
-        machine.model.gpus.sumOf { it.frequency }, // TODO: I still don't get why frquency/capacity is a sum. I don't get how it works
-        machine.model.gpus.size,
+        machine.model.gpus.sumOf { it.frequency },
         machine.model.memory.sumOf { it.size }
     )
 
@@ -147,7 +147,7 @@ public class SimHost(
     override fun canFit(server: Server): Boolean {
         val sufficientMemory = model.memoryCapacity >= server.flavor.memorySize
         val enoughCpus = model.cpuCount >= server.flavor.cpuCount
-        val enoughGpus = model.gpuCount >= server.flavor.gpuCount
+        val enoughGpus = model.gpuCapacity >= server.flavor.gpuCapacity
         val canFit = hypervisor.canFit(server.flavor.toMachineModel())
 
         return sufficientMemory && enoughCpus && enoughGpus && canFit
@@ -372,14 +372,13 @@ public class SimHost(
         val processingUnits = (0 until cpuCount).map { ProcessingUnit(processingNode, it, cpuCapacity) }
 
         val originalGpu = machine.model.gpus[0] // TODO: need to add a check if not empty?
-        val originalGpuNode = originalGpu.node
         val gpuCapacity = (this.meta["gpu-capacity"] as? Double ?: Double.MAX_VALUE).coerceAtMost(originalGpu.frequency) // TODO: this gpu-capacity part makes me think I need to change my meta pasring
-        val gpuProcessingNode = ProcessingNode(originalGpuNode.vendor, originalGpuNode.modelName, originalGpuNode.architecture, gpuCount)
-        val gpuProcessingUnits = (0 until gpuCount).map { ProcessingUnit(gpuProcessingNode, it, gpuCapacity) }
+        val graphicsProcessingUnits = listOf(GraphicsProcessingUnit(originalGpu.vendor, originalGpu.modelName, originalGpu.architecture,
+            gpuCapacity))
 
         val memoryUnits = listOf(MemoryUnit("Generic", "Generic", 3200.0, memorySize))
 
-        val model = MachineModel(processingUnits, gpuProcessingUnits, memoryUnits)
+        val model = MachineModel(processingUnits, graphicsProcessingUnits, memoryUnits)
         return if (optimize) model.optimize() else model
     }
 

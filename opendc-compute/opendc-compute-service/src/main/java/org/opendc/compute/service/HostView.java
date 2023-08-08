@@ -31,8 +31,8 @@ public class HostView {
     private final Host host;
     int instanceCount;
     long availableMemory;
-    int provisionedCpuCores;
-    int provisionedGpuCores;
+    int provisionedCores;
+    double availableGpuCapacity;
 
     /**
      * Construct a {@link HostView} instance.
@@ -68,10 +68,10 @@ public class HostView {
     /**
      * Return the provisioned cores on the host.
      */
-    public int getProvisionedCpuCores() {
-        return provisionedCpuCores;
+    public int getProvisionedCores() {
+        return provisionedCores;
     }
-    public int getProvisionedGpuCores() { return provisionedGpuCores; }
+    public double getAvailableGpuCapacity() { return availableGpuCapacity; }
 
     @Override
     public String toString() {

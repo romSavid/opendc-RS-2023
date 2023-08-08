@@ -24,9 +24,9 @@
 
 package org.opendc.experiments.cloudGaming.topology
 
-import kotlinx.coroutines.flow.merge
 import org.opendc.experiments.compute.topology.HostSpec
 import org.opendc.simulator.compute.SimPsuFactories
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit
 import org.opendc.simulator.compute.model.MachineModel
 import org.opendc.simulator.compute.model.MemoryUnit
 import org.opendc.simulator.compute.model.ProcessingNode
@@ -52,11 +52,9 @@ private val reader = ClusterSpecReader()
  */
 fun clusterTopology(
     file: File,
-    cpuPowerModel: CpuPowerModel = CpuPowerModels.linear(330.0, 60.0), // Based on i9 from https://www.reddit.com/r/Amd/comments/10evt0z/ryzen_vs_intels_idle_power_consumption_whole/
-    gpuPowerModel: GpuPowerModel = GpuPowerModels.linear(350.0, 170.0), // TODO: numbers should probably be different
     random: RandomGenerator = SplittableRandom(0)
 ): List<HostSpec> {
-    return clusterTopology(reader.read(file), cpuPowerModel, gpuPowerModel, random)
+    return clusterTopology(reader.read(file), random)
 }
 
 /**
@@ -64,38 +62,36 @@ fun clusterTopology(
  */
 fun clusterTopology(
     input: InputStream,
-    cpuPowerModel: CpuPowerModel = CpuPowerModels.linear(330.0, 60.0),
-    gpuPowerModel: GpuPowerModel = GpuPowerModels.linear(350.0, 170.0), // TODO: numbers should probably be different
     random: RandomGenerator = SplittableRandom(0)
 ): List<HostSpec> {
-    return clusterTopology(reader.read(input), cpuPowerModel, gpuPowerModel, random)
+    return clusterTopology(reader.read(input), random)
 }
 
 /**
  * Construct a topology from the given list of [clusters].
  */
-fun clusterTopology(clusters: List<ClusterSpec>, cpuPowerModel: CpuPowerModel, gpuPowerModel: GpuPowerModel, random: RandomGenerator = SplittableRandom(0)): List<HostSpec> {
-    return clusters.flatMap { it.toHostSpecs(random, cpuPowerModel, gpuPowerModel) }
+fun clusterTopology(clusters: List<ClusterSpec>, random: RandomGenerator = SplittableRandom(0)): List<HostSpec> {
+    return clusters.flatMap { it.toHostSpecs(random) }
 }
 
 /**
  * Helper method to convert a [ClusterSpec] into a list of [HostSpec]s.
  */
-private fun ClusterSpec.toHostSpecs(random: RandomGenerator, cpuPowerModel: CpuPowerModel, gpuPowerModel: GpuPowerModel): List<HostSpec> {
+private fun ClusterSpec.toHostSpecs(random: RandomGenerator): List<HostSpec> {
     // TODO: maybe add CPU and GPU presets later
 //    val cpuSpeed = cpuSpeed // TODO: remove? not sure why is this needed
     val memoryPerHost = memCapacityPerHost.roundToLong()
 
     val unknownCpuProcessingNode = ProcessingNode("unknown", "unknown", "unknown", cpuCountPerHost)
-    val unknownGpuProcessingNode = ProcessingNode("unknown", "unknown", "unknown", gpuCountPerHost)
+    val virtualGpuCapacity = (gpuCapacity * gpuCount) / hostCount;
     val unknownMemoryUnit = MemoryUnit("unknown", "unknown", -1.0, memoryPerHost) // TODO: Why is the speed -1?
 
-    val cpuCores = List(cpuCountPerHost) { coreId -> ProcessingUnit(unknownCpuProcessingNode, coreId, cpuSpeed) }
-    val gpuCores = List(gpuCountPerHost) { coreId -> ProcessingUnit(unknownGpuProcessingNode, coreId, gpuSpeed) }
+    val cpuCores = List(cpuCountPerHost) { coreId -> ProcessingUnit(unknownCpuProcessingNode, coreId, cpuCapacity) }
+    val vGpus = List(1) { gpuId -> GraphicsProcessingUnit("unknown", "unknown", "unknown", virtualGpuCapacity) } // TODO: currently we added support for one vGPU, that could be changed later
 
     val machineModel = MachineModel(
         cpuCores,
-        gpuCores,
+        vGpus,
         listOf(unknownMemoryUnit)
     )
 
@@ -105,7 +101,7 @@ private fun ClusterSpec.toHostSpecs(random: RandomGenerator, cpuPowerModel: CpuP
             "node-$name-$it",
             mapOf("cluster" to id),
             machineModel,
-            SimPsuFactories.simpleGaming(cpuPowerModel, gpuPowerModel)
+            SimPsuFactories.simpleGaming(CpuPowerModels.linear(cpuMaxDraw, cpuIdleDraw), GpuPowerModels.linear(gpuMaxDraw, gpuIdleDraw))
         )
     }
 }

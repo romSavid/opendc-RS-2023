@@ -24,6 +24,8 @@ package org.opendc.simulator.compute.workload;
 
 import java.util.Arrays;
 import java.util.List;
+
+import org.opendc.simulator.compute.SimGraphicsProcessingUnit;
 import org.opendc.simulator.compute.SimMachineContext;
 import org.opendc.simulator.compute.SimProcessingUnit;
 import org.opendc.simulator.flow2.FlowGraph;
@@ -39,7 +41,6 @@ public final class SimTrace {
     private final double[] gpuUsageCol;
     private final long[] deadlineCol;
     private final int[] cpuCoresCol;
-    private final int[] gpuCoresCol;
     private final int size;
 
     /**
@@ -49,10 +50,9 @@ public final class SimTrace {
      * @param gpuUsageCol The column containing the GPU usage of each fragment (in MHz).
      * @param deadlineCol The column containing the ending timestamp for each fragment (in epoch millis).
      * @param cpuCoresCol The column containing the utilized CPU cores.
-     * @param gpuCoresCol The column containing the utilized GPU cores.
      * @param size The number of fragments in the trace.
      */
-    private SimTrace(double[] cpuUsageCol, double[] gpuUsageCol, long[] deadlineCol, int[] cpuCoresCol, int[] gpuCoresCol, int size) {
+    private SimTrace(double[] cpuUsageCol, double[] gpuUsageCol, long[] deadlineCol, int[] cpuCoresCol, int size) {
         if (size < 0) {
             throw new IllegalArgumentException("Invalid trace size");
         } else if (cpuUsageCol.length < size) {
@@ -63,15 +63,12 @@ public final class SimTrace {
             throw new IllegalArgumentException("Invalid number of deadline entries");
         } else if (cpuCoresCol.length < size) {
             throw new IllegalArgumentException("Invalid number of cpu core entries");
-        } else if (gpuCoresCol.length < size) {
-            throw new IllegalArgumentException("Invalid number of gpu core entries");
         }
 
         this.cpuUsageCol = cpuUsageCol;
         this.gpuUsageCol = gpuUsageCol;
         this.deadlineCol = deadlineCol;
         this.cpuCoresCol = cpuCoresCol;
-        this.gpuCoresCol = gpuCoresCol;
         this.size = size;
     }
 
@@ -86,8 +83,6 @@ public final class SimTrace {
     private SimTrace(double[] cpuUsageCol, long[] deadlineCol, int[] cpuCoresCol, int size) {
         double[] gpuUsage = new double[size];
         Arrays.fill(gpuUsage, 0.0);
-        int[] gpuCores = new int[size];
-        Arrays.fill(gpuCores, 0);
 
         if (size < 0) {
             throw new IllegalArgumentException("Invalid trace size");
@@ -104,7 +99,6 @@ public final class SimTrace {
         this.gpuUsageCol = gpuUsage;
         this.deadlineCol = deadlineCol;
         this.cpuCoresCol = cpuCoresCol;
-        this.gpuCoresCol = gpuCores;
         this.size = size;
     }
 
@@ -114,7 +108,7 @@ public final class SimTrace {
      * @param offset The offset for the timestamps.
      */
     public SimWorkload createWorkload(long offset) {
-        return new Workload(offset, cpuUsageCol, gpuUsageCol, deadlineCol, cpuCoresCol, gpuCoresCol, size, 0);
+        return new Workload(offset, cpuUsageCol, gpuUsageCol, deadlineCol, cpuCoresCol, size, 0);
     }
 
     /**
@@ -140,7 +134,7 @@ public final class SimTrace {
         final Builder builder = builder(fragments.length);
 
         for (SimTraceFragment fragment : fragments) {
-            builder.add(fragment.timestamp + fragment.duration, fragment.cpuUsage, fragment.gpuUsage, fragment.cpuCores, fragment.gpuCores);
+            builder.add(fragment.timestamp + fragment.duration, fragment.cpuUsage, fragment.gpuUsage, fragment.cpuCores);
         }
 
         return builder.build();
@@ -155,7 +149,7 @@ public final class SimTrace {
         final Builder builder = builder(fragments.size());
 
         for (SimTraceFragment fragment : fragments) {
-            builder.add(fragment.timestamp + fragment.duration, fragment.cpuUsage, fragment.gpuUsage, fragment.cpuCores, fragment.gpuCores);
+            builder.add(fragment.timestamp + fragment.duration, fragment.cpuUsage, fragment.gpuUsage, fragment.cpuCores);
         }
 
         return builder.build();
@@ -169,7 +163,6 @@ public final class SimTrace {
         private double[] gpuUsageCol;
         private long[] deadlineCol;
         private int[] cpuCoresCol;
-        private int[] gpuCoresCol;
 
         private int size;
         private boolean isBuilt;
@@ -182,7 +175,6 @@ public final class SimTrace {
             this.gpuUsageCol = new double[initialCapacity];
             this.deadlineCol = new long[initialCapacity];
             this.cpuCoresCol = new int[initialCapacity];
-            this.gpuCoresCol = new int[initialCapacity];
         }
 
         /**
@@ -192,9 +184,8 @@ public final class SimTrace {
          * @param cpuUsage The CPU usage at this fragment.
          * @param gpuUsage The GPU usage at this fragment.
          * @param cpuCores The number of CPU cores used during this fragment.
-         * @param gpuCores The number GPU of cores used during this fragment.
          */
-        public void add(long deadline, double cpuUsage, double gpuUsage, int cpuCores, int gpuCores) {
+        public void add(long deadline, double cpuUsage, double gpuUsage, int cpuCores) {
             if (isBuilt) {
                 recreate();
             }
@@ -214,7 +205,6 @@ public final class SimTrace {
             cpuUsageCol[size] = cpuUsage;
             gpuUsageCol[size] = gpuUsage;
             cpuCoresCol[size] = cpuCores;
-            gpuCoresCol[size] = gpuCores;
 
             this.size++;
         }
@@ -246,7 +236,6 @@ public final class SimTrace {
             cpuUsageCol[size] = cpuUsage;
             gpuUsageCol[size] = 0.0;
             cpuCoresCol[size] = cpuCores;
-            gpuCoresCol[size] = 0;
 
             this.size++;
         }
@@ -256,7 +245,7 @@ public final class SimTrace {
          */
         public SimTrace build() {
             isBuilt = true;
-            return new SimTrace(cpuUsageCol, gpuUsageCol, deadlineCol, cpuCoresCol, gpuCoresCol, size);
+            return new SimTrace(cpuUsageCol, gpuUsageCol, deadlineCol, cpuCoresCol, size);
         }
 
         /**
@@ -267,10 +256,9 @@ public final class SimTrace {
             int newSize = arraySize + (arraySize >> 1);
 
             cpuCoresCol = Arrays.copyOf(cpuCoresCol, newSize);
-            gpuCoresCol = Arrays.copyOf(gpuCoresCol, newSize);
             deadlineCol = Arrays.copyOf(deadlineCol, newSize);
-            cpuCoresCol = Arrays.copyOf(cpuCoresCol, newSize);
-            gpuCoresCol = Arrays.copyOf(gpuCoresCol, newSize);
+            cpuUsageCol = Arrays.copyOf(cpuUsageCol, newSize);
+            gpuUsageCol = Arrays.copyOf(gpuUsageCol, newSize);
         }
 
         /**
@@ -286,7 +274,6 @@ public final class SimTrace {
             gpuUsageCol = gpuUsageCol.clone();
             deadlineCol = deadlineCol.clone();
             cpuCoresCol = cpuCoresCol.clone();
-            gpuCoresCol = gpuCoresCol.clone();
         }
     }
 
@@ -301,20 +288,18 @@ public final class SimTrace {
         private final double[] gpuUsageCol;
         private final long[] deadlineCol;
         private final int[] cpuCoresCol;
-        private final int[] gpuCoresCol;
         private final int size;
         private final int index;
 
         private Workload(
             long offset, double[] cpuUsageCol, double[] gpuUsageCol,
-            long[] deadlineCol, int[] cpuCoresCol, int[] gpuCoresCol, int size, int index) {
+            long[] deadlineCol, int[] cpuCoresCol, int size, int index) {
 
             this.offset = offset;
             this.cpuUsageCol = cpuUsageCol;
             this.gpuUsageCol = gpuUsageCol;
             this.deadlineCol = deadlineCol;
             this.cpuCoresCol = cpuCoresCol;
-            this.gpuCoresCol = gpuCoresCol;
             this.size = size;
             this.index = index;
         }
@@ -322,15 +307,12 @@ public final class SimTrace {
         private Workload(long offset, double[] cpuUsageCol, long[] deadlineCol, int[] cpuCoresCol, int size, int index) {
             double[] gpuUsage = new double[size];
             Arrays.fill(gpuUsage, 0.0);
-            int[] gpuCores = new int[size];
-            Arrays.fill(gpuCores, 0);
 
             this.offset = offset;
             this.cpuUsageCol = cpuUsageCol;
             this.gpuUsageCol = gpuUsage;
             this.deadlineCol = deadlineCol;
             this.cpuCoresCol = cpuCoresCol;
-            this.gpuCoresCol = gpuCores;
             this.size = size;
             this.index = index;
         }
@@ -340,10 +322,11 @@ public final class SimTrace {
             final WorkloadStageLogic logic;
             // TODO: to keep it simple, if there are GPUs it goes straight to MultiWorkloadLogic. Might need to be changed later
             // TODO: Also, then SingleWorkloadLogic implementation is not changed. Verify later that this is ok.
+            // TODO 3: Now with my new implementation, not sure how many GPUs will get here. shouldn't be more than 1.
             if (ctx.getCpus().size() == 1 && ctx.getGpus().size() == 0) {
                 logic = new SingleWorkloadLogic(ctx, offset, cpuUsageCol, deadlineCol, size, index);
             } else {
-                logic = new MultiWorkloadLogic(ctx, offset, cpuUsageCol, gpuUsageCol, deadlineCol, cpuCoresCol, gpuCoresCol, size, index);
+                logic = new MultiWorkloadLogic(ctx, offset, cpuUsageCol, gpuUsageCol, deadlineCol, cpuCoresCol, size, index);
             }
             this.logic = logic;
         }
@@ -367,7 +350,7 @@ public final class SimTrace {
                 index = logic.getIndex();
             }
 
-            return new Workload(offset, cpuUsageCol, gpuUsageCol, deadlineCol, cpuCoresCol, gpuCoresCol, size, index);
+            return new Workload(offset, cpuUsageCol, gpuUsageCol, deadlineCol, cpuCoresCol, size, index);
         }
     }
 
@@ -477,14 +460,13 @@ public final class SimTrace {
         private final OutPort[] gpuOutputs;
         private int index;
         private final int cpuCoreCount;
-        private final int gpuCoreCount;
+        private final int gpuCount; // TODO: to not break the implementation for now. But not sure it makes sense
 
         private final long offset;
         private final double[] cpuUsageCol;
         private final double[] gpuUsageCol;
         private final long[] deadlineCol;
         private final int[] cpuCoresCol;
-        private final int[] gpuCoresCol;
         private final int size;
 
         private final SimMachineContext ctx;
@@ -496,7 +478,6 @@ public final class SimTrace {
             double[] gpuUsageCol,
             long[] deadlineCol,
             int[] cpuCoresCol,
-            int[] gpuCoresCol,
             int size,
             int index) {
             this.ctx = ctx;
@@ -505,17 +486,16 @@ public final class SimTrace {
             this.gpuUsageCol = gpuUsageCol;
             this.deadlineCol = deadlineCol;
             this.cpuCoresCol = cpuCoresCol;
-            this.gpuCoresCol = gpuCoresCol;
             this.size = size;
             this.index = index;
 
             final FlowGraph graph = ctx.getGraph();
             final List<? extends SimProcessingUnit> cpus = ctx.getCpus();
-            final List<? extends SimProcessingUnit> gpus = ctx.getGpus();
+            final List<? extends SimGraphicsProcessingUnit> gpus = ctx.getGpus();
 
             stage = graph.newStage(this);
             cpuCoreCount = cpus.size();
-            gpuCoreCount = gpus.size();
+            gpuCount = gpus.size();
 
             final OutPort[] cpuOutputs = new OutPort[cpus.size()];
             final OutPort[] gpuOutputs = new OutPort[gpus.size()];
@@ -531,7 +511,7 @@ public final class SimTrace {
             }
 
             for (int i = 0; i < gpus.size(); i++) {
-                final SimProcessingUnit gpu = gpus.get(i);
+                final SimGraphicsProcessingUnit gpu = gpus.get(i);
                 final OutPort output = stage.getOutlet("gpu" + i);
 
                 graph.connect(output, gpu.getInput());
@@ -579,16 +559,15 @@ public final class SimTrace {
                 cpuOutputs[i].push(0.f);
             }
 
-            int gpuCores = Math.min(gpuCoreCount, gpuCoresCol[index]);
-            float gpuUsage = (float) gpuUsageCol[index] / gpuCores;
+            float gpuUsage = (float) gpuUsageCol[index];
 
             final OutPort[] gpuOutputs = this.gpuOutputs;
 
-            for (int i = 0; i < gpuCores; i++) {
+            for (int i = 0; i < gpuCount; i++) {
                 gpuOutputs[i].push(gpuUsage);
             }
 
-            for (int i = gpuCores; i < gpuOutputs.length; i++) {
+            for (int i = gpuCount; i < gpuOutputs.length; i++) {
                 gpuOutputs[i].push(0.f);
             }
 

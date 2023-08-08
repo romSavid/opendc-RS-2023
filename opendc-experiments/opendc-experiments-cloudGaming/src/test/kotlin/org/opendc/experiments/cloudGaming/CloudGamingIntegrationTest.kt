@@ -46,6 +46,10 @@ import org.opendc.experiments.compute.telemetry.table.HostTableReader
 import org.opendc.experiments.compute.telemetry.table.ServiceTableReader
 import org.opendc.experiments.compute.topology.HostSpec
 import org.opendc.experiments.provisioner.Provisioner
+import org.opendc.simulator.compute.power.CpuPowerModel
+import org.opendc.simulator.compute.power.CpuPowerModels
+import org.opendc.simulator.compute.power.GpuPowerModel
+import org.opendc.simulator.compute.power.GpuPowerModels
 import org.opendc.simulator.compute.workload.SimTrace
 import org.opendc.simulator.kotlin.runSimulation
 import java.io.File
@@ -146,12 +150,10 @@ class CloudGamingIntegrationTest {
         val tracesDir = "genTraces"
         val usersPerHour = listOf(10, 15, 12, 10)
 
-        // a New graphics card for the experiment
-        val gpu = GraphicsCard(2560, 1550.0)
         // generate new topology
-        CloudGamingTopologyGenerator.generateTopologyTxt(2, 16, 3.5, gpu, 4, 128, 8, "testTopo")
+        CloudGamingTopologyGenerator.generateTopologyTxt(2, 8, 3.5, 2, 1.8, 128, 8, "testTopo", 80.0, 165.0, 50.0, 200.0)
         // generate new trace
-        CloudGamingTraceGenerator.generateTraceCsv(4, usersPerHour, 1, 1500.0, 3500.0, 1280, 1200.0, 1550.0, 8000, tracesDir)
+        CloudGamingTraceGenerator.generateTraceCsv(4, usersPerHour, 1, 1500.0, 3500.0, 1, 400.0, 450.0, 8000, tracesDir)
 
         val seed = 1L
         val workload = getWorkload(tracesDir)
@@ -202,18 +204,23 @@ class CloudGamingIntegrationTest {
     @Test
     fun testBasicRun() = runSimulation {
 
-        val tracesDir = "xcloud-trace"
+        val tracesDir = "psplus-trace"
 //        val usersPerHour = listOf(23454, 23438, 22608, 20648, 18228, 16121, 15079, 14475, 13902, 13821,
 //            14014, 14871, 16859, 18973, 21268, 23725, 25575, 26880, 28135, 28866, 28096, 26084, 24258, 23429)
 
-        val usersPerHour = listOf(2345, 2343, 2260, 2064, 1822, 1612, 1507, 1447, 1390, 1382,
-            1401, 1487, 1685, 1897, 2126, 2372, 2557, 2688, 2813, 2886, 2809, 2608, 2425, 2342)
+        val usersPerHour = listOf(1777, 1693, 1560, 1406, 1242, 1106, 1045, 1011, 973, 938,
+            949, 1031, 1182, 1357, 1563, 1779, 1925, 2013, 2074, 2096, 2029, 1961, 1890, 1826) //ip.inpvp // average 1517 users
 
-        ExperimentGenerator.generateExperiment("xcloud", 0.30, 0.25, 24, usersPerHour)
+//        val usersPerHour = listOf(160, 160, 160, 160)
+
+//        val usersPerHour = listOf(2345, 2343, 2260, 2064, 1822, 1612, 1507, 1447, 1390, 1382,
+//            1401, 1487, 1685, 1897, 2126, 2372, 2557, 2688, 2813, 2886, 2809, 2608, 2425, 2342)
+
+        ExperimentGenerator.generateExperiment("psplus", 0.5, 0.95, 24, usersPerHour)
 
         val seed = 1L
         val workload = getWorkload(tracesDir)
-        val topology = createTopology("xcloud-topology")
+        val topology = createTopology("psplus-topology")
         val monitor = monitor
 
         Provisioner(dispatcher, seed).use { provisioner ->
@@ -281,7 +288,7 @@ class CloudGamingIntegrationTest {
         var duration = 0L
         var cpuCores = 0
         var cpuUsage = 0.0
-        var gpuCores = 0
+//        var gpuCount = 0
         var gpuUsage = 0.0
 
         while (!parser.isClosed) {
@@ -290,7 +297,7 @@ class CloudGamingIntegrationTest {
                 val builder = fragments.computeIfAbsent(id) { FragmentBuilder() }
                 val deadlineMs = timestamp
                 val timeMs = (timestamp - duration)
-                builder.add(timeMs, deadlineMs, cpuUsage, gpuUsage, cpuCores, gpuCores)
+                builder.add(timeMs, deadlineMs, cpuUsage, gpuUsage, cpuCores)
 
 //                println("FRAGMENTS\n" +
 //                    "id $id\n" +
@@ -298,7 +305,6 @@ class CloudGamingIntegrationTest {
 //                    "duration $duration\n" +
 //                    "cpuCores $cpuCores\n" +
 //                    "cpuUsage $cpuUsage\n"+
-//                    "gpuCores $gpuCores\n"+
 //                    "gpuUsage $gpuUsage\n"+
 //                    "timeMs $timeMs\n"+
 //                    "deadlineMs $deadlineMs\n")
@@ -307,7 +313,7 @@ class CloudGamingIntegrationTest {
                 duration = 0
                 cpuCores = 0
                 cpuUsage = 0.0
-                gpuCores = 0
+//                gpuCount = 0
                 gpuUsage = 0.0
 
                 continue
@@ -319,7 +325,7 @@ class CloudGamingIntegrationTest {
                 "duration" -> duration = parser.valueAsLong
                 "cpuCores" -> cpuCores = parser.valueAsInt
                 "cpuUsage" -> cpuUsage = parser.valueAsDouble
-                "gpuCores" -> gpuCores = parser.valueAsInt
+//                "gpuCount" -> gpuCount = parser.valueAsInt
                 "gpuUsage" -> gpuUsage = parser.valueAsDouble
             }
         }
@@ -340,7 +346,7 @@ class CloudGamingIntegrationTest {
         var stopTime = 0L
         var cpuCores = 0
         var cpuCapacity = 0.0
-        var gpuCores = 0
+//        var gpuCount = 0
         var gpuCapacity = 0.0
         var memCapacity = 0.0
 
@@ -371,7 +377,6 @@ class CloudGamingIntegrationTest {
                         id.toString(),
                         cpuCores,
                         cpuCapacity,
-                        gpuCores,
                         gpuCapacity,
                         memCapacity.roundToLong(),
                         totalLoad,
@@ -387,7 +392,7 @@ class CloudGamingIntegrationTest {
                 stopTime = 0
                 cpuCores = 0
                 cpuCapacity = 0.0
-                gpuCores = 0
+//                gpuCount = 0
                 gpuCapacity = 0.0
                 memCapacity = 0.0
 
@@ -400,7 +405,7 @@ class CloudGamingIntegrationTest {
                 "stopTime" -> stopTime = parser.valueAsLong
                 "cpuCores" -> cpuCores = parser.valueAsInt
                 "cpuCapacity" -> cpuCapacity = parser.valueAsDouble
-                "gpuCores" -> gpuCores = parser.valueAsInt
+//                "gpuCount" -> gpuCount = parser.valueAsInt
                 "gpuCapacity" -> gpuCapacity = parser.valueAsDouble
                 "memCapacity" -> memCapacity = parser.valueAsDouble
             }
@@ -433,10 +438,9 @@ class CloudGamingIntegrationTest {
          * @param cpuUsage CPU usage of this fragment.
          * @param gpuUsage GPU usage of this fragment.
          * @param cpuCores Number of cores used.
-         * @param gpuCores Number of cores used.
          */
         //TODO: change to fit my schema
-        fun add(timestamp: Long, deadline: Long, cpuUsage: Double, gpuUsage: Double, cpuCores: Int, gpuCores: Int) {
+        fun add(timestamp: Long, deadline: Long, cpuUsage: Double, gpuUsage: Double, cpuCores: Int) {
             val duration = max(0, deadline - timestamp)
             // TODO: This is probably not right. Not sure what is totalLoad and what are we supposed to do with it. check later.
             totalLoad += (cpuUsage * duration) / 1000.0 // avg MHz * duration = MFLOPs
@@ -444,10 +448,10 @@ class CloudGamingIntegrationTest {
 
             if (timestamp != previousDeadline) {
                 // There is a gap between the previous and current fragment; fill the gap
-                builder.add(timestamp, 0.0, 0.0, cpuCores, gpuCores)
+                builder.add(timestamp, 0.0, 0.0, cpuCores)
             }
 
-            builder.add(deadline, cpuUsage, gpuUsage, cpuCores, gpuCores)
+            builder.add(deadline, cpuUsage, gpuUsage, cpuCores)
             previousDeadline = deadline
         }
 

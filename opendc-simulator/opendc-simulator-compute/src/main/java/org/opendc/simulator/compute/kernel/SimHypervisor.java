@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.opendc.simulator.compute.SimAbstractMachine;
+import org.opendc.simulator.compute.SimGraphicsProcessingUnit;
 import org.opendc.simulator.compute.SimMachine;
 import org.opendc.simulator.compute.SimMachineContext;
 import org.opendc.simulator.compute.SimMemory;
@@ -46,6 +47,7 @@ import org.opendc.simulator.compute.kernel.cpufreq.ScalingPolicy;
 import org.opendc.simulator.compute.kernel.interference.VmInterferenceDomain;
 import org.opendc.simulator.compute.kernel.interference.VmInterferenceMember;
 import org.opendc.simulator.compute.kernel.interference.VmInterferenceProfile;
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit;
 import org.opendc.simulator.compute.model.MachineModel;
 import org.opendc.simulator.compute.model.ProcessingUnit;
 import org.opendc.simulator.compute.workload.SimWorkload;
@@ -303,7 +305,7 @@ public final class SimHypervisor implements SimWorkload {
 
         private long lastCounterUpdate;
 //        private final double d;
-        private final double cpuD;
+        private final double cpuD; // TODO: might not be needed
         private final double gpuD;
         private float previousCpuDemand;
         private float previousGpuDemand;
@@ -330,10 +332,9 @@ public final class SimHypervisor implements SimWorkload {
             this.lastCounterUpdate = clock.millis();
 
             if (scalingGovernorFactory != null) {
-                this.scalingGovernors = Stream.concat(
-                    ctx.getCpus().stream().map(cpu -> scalingGovernorFactory.newGovernor(new ScalingPolicyImpl(cpu))),
-                    ctx.getGpus().stream().map(gpu -> scalingGovernorFactory.newGovernor(new ScalingPolicyImpl(gpu))) // TODO: verify it works
-                ).collect(Collectors.toList());
+                this.scalingGovernors = ctx.getCpus().stream()
+                    .map(cpu -> scalingGovernorFactory.newGovernor(new ScalingPolicyImpl(cpu))) // TODO: had a GPU solution here but after I changed the impl I removed it. Maybe need to add something later
+                    .collect(Collectors.toList());
             } else {
                 this.scalingGovernors = Collections.emptyList();
             }
@@ -347,8 +348,8 @@ public final class SimHypervisor implements SimWorkload {
 //            this.cpuD = cpus.size() / cpuCapacity;
 
             float gpuCapacity = 0.f;
-            final List<? extends SimProcessingUnit> gpus = ctx.getGpus();
-            for (SimProcessingUnit gpu : gpus) {
+            final List<? extends SimGraphicsProcessingUnit> gpus = ctx.getGpus(); // TODO: Currently should only go once, verify
+            for (SimGraphicsProcessingUnit gpu : gpus) {
                 gpuCapacity += gpu.getFrequency();
             }
 //            this.gpuD = gpus.size() / gpuCapacity;
@@ -368,7 +369,7 @@ public final class SimHypervisor implements SimWorkload {
             for (SimProcessingUnit cpu : ctx.getCpus()) {
                 graph.connect(cpuMultiplexer.newOutput(), cpu.getInput());
             }
-            for (SimProcessingUnit gpu : ctx.getGpus()) {
+            for (SimGraphicsProcessingUnit gpu : ctx.getGpus()) { // TODO: should only run once, verify
                 graph.connect(gpuMultiplexer.newOutput(), gpu.getInput());
             }
 
@@ -415,8 +416,6 @@ public final class SimHypervisor implements SimWorkload {
                 float gpuRate = previousGpuRate;
                 float gpuCapacity = previousGpuCapacity;
 
-//                final double cpuFactor = this.cpuD * delta;
-//                final double gpuFactor = this.gpuD * delta;
                 final double cpuFactor = this.cpuD * delta;
                 final double gpuFactor = this.gpuD * delta;
 
@@ -710,7 +709,7 @@ public final class SimHypervisor implements SimWorkload {
 
             final MachineModel model = machine.getModel();
             final List<ProcessingUnit> cpuModels = model.getCpus();
-            final List<ProcessingUnit> gpuModels = model.getGpus();
+            final List<GraphicsProcessingUnit> gpuModels = model.getGpus();
             final Inlet[] cpuMuxInlets = new Inlet[cpuModels.size()];
             final Inlet[] gpuMuxInlets = new Inlet[gpuModels.size()];
             final ArrayList<VCpu> cpus = new ArrayList<>();
@@ -755,7 +754,7 @@ public final class SimHypervisor implements SimWorkload {
                 input.setHandler(handler);
                 output.setHandler(handler);
 
-                final ProcessingUnit gpuModel = gpuModels.get(i);
+                final GraphicsProcessingUnit gpuModel = gpuModels.get(i);
                 gpuCapacity += gpuModel.getFrequency();
 
                 final VGpu gpu = new VGpu(gpuModel, input);
@@ -840,7 +839,7 @@ public final class SimHypervisor implements SimWorkload {
         }
 
         @Override
-        public List<? extends SimProcessingUnit> getGpus() {
+        public List<? extends SimGraphicsProcessingUnit> getGpus() {
             return gpus;
         }
 
@@ -994,11 +993,11 @@ public final class SimHypervisor implements SimWorkload {
      * A GPU {@link SimProcessingUnit} of a virtual machine.
      */
     // TODO: pretty identical to VCpu. Remove if not needed, or leave for future additions
-    private static final class VGpu implements SimProcessingUnit {
-        private final ProcessingUnit model;
+    private static final class VGpu implements SimGraphicsProcessingUnit {
+        private final GraphicsProcessingUnit model;
         private final InPort input;
 
-        private VGpu(ProcessingUnit model, InPort input) {
+        private VGpu(GraphicsProcessingUnit model, InPort input) {
             this.model = model;
             this.input = input;
 
@@ -1026,7 +1025,7 @@ public final class SimHypervisor implements SimWorkload {
         }
 
         @Override
-        public ProcessingUnit getModel() {
+        public GraphicsProcessingUnit getModel() {
             return model;
         }
 
@@ -1109,7 +1108,7 @@ public final class SimHypervisor implements SimWorkload {
      * Implementation of {@link SimHypervisorCounters} for the hypervisor.
      */
     // TODO: Currently, I didn't implement gpu times because we only use one multiplexer, change later?
-        // TODO2: Now using 2 multiplexsrts, hopefully this is fine
+        // TODO 2: Now using 2 multiplexsrts, hopefully this is fine
     private class HvCounters implements SimHypervisorCounters {
         private long cpuActiveTime;
         private long gpuActiveTime;

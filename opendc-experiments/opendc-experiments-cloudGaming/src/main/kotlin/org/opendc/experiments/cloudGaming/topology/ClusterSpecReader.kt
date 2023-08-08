@@ -69,14 +69,17 @@ class ClusterSpecReader {
                 entry.id,
                 entry.name,
                 entry.cpuCoresCount,
-                entry.cpuSpeed * 1000, // Convert to MHz
-                entry.gpuCoresCount,
-                entry.gpuSpeed * 1000, // Convert to MHz // TODO: see if this conversion is needed
+                entry.cpuCapacity * 1000, // Convert to MHz
+                entry.gpuCount,
+                entry.gpuCapacity * 1000, // Convert to MHz // TODO: see if this conversion is needed
                 entry.memCapacity * 1000, // Convert to MiB
                 entry.hostCount,
                 (entry.memCapacity * 1000) / entry.hostCount, // Convert to MiB and divide by host count
                 entry.cpuCoresCount / entry.hostCount,
-                entry.gpuCoresCount / entry.hostCount
+                entry.cpuIdleDraw,
+                entry.cpuMaxDraw,
+                entry.gpuIdleDraw,
+                entry.gpuMaxDraw
             )
             result.add(def)
         }
@@ -91,16 +94,24 @@ class ClusterSpecReader {
         val name: String,
         @JsonProperty("cpuCores")
         val cpuCoresCount: Int,
-        @JsonProperty("cpuSpeed")
-        val cpuSpeed: Double,
-        @JsonProperty("gpuCores")
-        val gpuCoresCount: Int,
-        @JsonProperty("gpuSpeed")
-        val gpuSpeed: Double,
+        @JsonProperty("cpuCapacity")
+        val cpuCapacity: Double,
+        @JsonProperty("gpuCount")
+        val gpuCount: Int,
+        @JsonProperty("gpuCapacity")
+        val gpuCapacity: Double,
         @JsonProperty("Memory")
         val memCapacity: Double,
         @JsonProperty("numberOfHosts")
-        val hostCount: Int
+        val hostCount: Int,
+        @JsonProperty("cpuIdleDraw")
+        val cpuIdleDraw: Double,
+        @JsonProperty("cpuMaxDraw")
+        val cpuMaxDraw: Double,
+        @JsonProperty("gpuIdleDraw")
+        val gpuIdleDraw: Double,
+        @JsonProperty("gpuMaxDraw")
+        val gpuMaxDraw: Double
     )
 
     companion object {
@@ -111,11 +122,15 @@ class ClusterSpecReader {
             .addColumn("ClusterID", CsvSchema.ColumnType.STRING)
             .addColumn("ClusterName", CsvSchema.ColumnType.STRING)
             .addColumn("cpuCores", CsvSchema.ColumnType.NUMBER)
-            .addColumn("cpuSpeed", CsvSchema.ColumnType.NUMBER)
-            .addColumn("gpuCores", CsvSchema.ColumnType.NUMBER)
-            .addColumn("gpuSpeed", CsvSchema.ColumnType.NUMBER)
+            .addColumn("cpuCapacity", CsvSchema.ColumnType.NUMBER)
+            .addColumn("gpuCount", CsvSchema.ColumnType.NUMBER)
+            .addColumn("gpuCapacity", CsvSchema.ColumnType.NUMBER)
             .addColumn("Memory", CsvSchema.ColumnType.NUMBER)
             .addColumn("numberOfHosts", CsvSchema.ColumnType.NUMBER)
+            .addColumn("cpuIdleDraw", CsvSchema.ColumnType.NUMBER)
+            .addColumn("cpuMaxDraw", CsvSchema.ColumnType.NUMBER)
+            .addColumn("gpuIdleDraw", CsvSchema.ColumnType.NUMBER)
+            .addColumn("gpuMaxDraw", CsvSchema.ColumnType.NUMBER)
             .setAllowComments(true)
             .setColumnSeparator(';')
             .setUseHeader(true)

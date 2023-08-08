@@ -49,7 +49,7 @@ public interface SimVirtualMachine extends SimMachine {
     double getCpuDemand();
 
     /**
-     * Return the CPU usage of the VM in MHz.
+     * Return the GPU usage of the VM in MHz.
      */
     double getGpuDemand();
 

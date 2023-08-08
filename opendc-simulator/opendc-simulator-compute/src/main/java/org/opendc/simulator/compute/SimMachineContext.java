@@ -56,7 +56,7 @@ public interface SimMachineContext {
     /**
      * Return the GPUs available on the machine.
      */
-    List<? extends SimProcessingUnit> getGpus();
+    List<? extends SimGraphicsProcessingUnit> getGpus();
 
     /**
      * Return the memory interface of the machine.

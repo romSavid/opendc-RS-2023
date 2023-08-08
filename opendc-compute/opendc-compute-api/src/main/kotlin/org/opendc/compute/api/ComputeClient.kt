@@ -45,7 +45,7 @@ public interface ComputeClient : AutoCloseable {
      *
      * @param name The name of the flavor.
      * @param cpuCount The amount of CPU cores for this flavor.
-     * @param gpuCount The amount of GPU cores for this flavor.
+     * @param gpuCapacity The GPU capacity for this flavor.
      * @param memorySize The size of the memory in MB.
      * @param labels The identifying labels of the image.
      * @param meta The non-identifying meta-data of the image.
@@ -53,13 +53,13 @@ public interface ComputeClient : AutoCloseable {
     public fun newFlavor(
         name: String,
         cpuCount: Int,
-        gpuCount: Int,
+        gpuCapacity: Double,
         memorySize: Long,
         labels: Map<String, String> = emptyMap(),
         meta: Map<String, Any> = emptyMap()
     ): Flavor
 
-    // Create a new [Flavor] instance without GPU cores at this compute service.
+    // Create a new [Flavor] instance without GPU capacity at this compute service.
     public fun newFlavor(
         name: String,
         cpuCount: Int,
@@ -67,7 +67,7 @@ public interface ComputeClient : AutoCloseable {
         labels: Map<String, String> = emptyMap(),
         meta: Map<String, Any> = emptyMap()
     ): Flavor {
-        return newFlavor(name, cpuCount, 0, memorySize, labels, meta) // TODO: is this thing ok?
+        return newFlavor(name, cpuCount, 0.0, memorySize, labels, meta)
     }
 
     /**

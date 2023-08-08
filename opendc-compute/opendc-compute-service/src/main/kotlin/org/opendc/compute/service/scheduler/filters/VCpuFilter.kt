@@ -41,7 +41,7 @@ public class VCpuFilter(private val allocationRatio: Double) : HostFilter {
             return false
         }
 
-        val free = limit - host.provisionedCpuCores
+        val free = limit - host.provisionedCores
         return free >= requested
     }
 }

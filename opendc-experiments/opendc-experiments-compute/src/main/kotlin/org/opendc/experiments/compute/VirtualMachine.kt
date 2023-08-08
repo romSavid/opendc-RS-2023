@@ -35,7 +35,6 @@ import java.util.UUID
  * @param cpuCapacity The required CPU capacity for the VM in MHz.
  * @param cpuCount The number of vCPUs in the VM.
  * @param gpuCapacity The required GPU capacity for the VM in MHz.
- * @param cpuCount The number of vGPUs in the VM.
  * @param memCapacity The provisioned memory for the VM in MB.
  * @param startTime The start time of the VM.
  * @param stopTime The stop time of the VM.
@@ -47,7 +46,6 @@ public data class VirtualMachine(
     val name: String,
     val cpuCount: Int,
     val cpuCapacity: Double,
-    val gpuCount: Int,
     val gpuCapacity: Double,
     val memCapacity: Long,
     val totalLoad: Double,

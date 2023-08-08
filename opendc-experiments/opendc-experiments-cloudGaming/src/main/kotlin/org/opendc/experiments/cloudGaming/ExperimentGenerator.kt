@@ -1,5 +1,7 @@
 package org.opendc.experiments.cloudGaming
 
+import kotlin.math.ceil
+
 object ExperimentGenerator {
     private const val instancesPerCluster = 160
 
@@ -20,60 +22,76 @@ object ExperimentGenerator {
         usersPerHour: List<Int>
     ) {
         val cpuCount: Int
-        val gpuCoresPerCard: Int
+        val gpuCount: Int
         val cpuCap: Double
         val gpuCap: Double
         val memCap: Long
-        val graphicsCardPerCluster: Int
         val gameInstancesPerCluster: Int
+        val cpuIdleDraw: Double
+        val cpuMaxDraw: Double
+        val gpuIdleDraw: Double
+        val gpuMaxDraw: Double
 
         // Set preset attributes based on the chosen platform
         when (platform.lowercase()) {
             "xcloud" -> {
                 cpuCount = 160
-                gpuCoresPerCard = 3328
-                graphicsCardPerCluster = 20
+                gpuCount = 20
                 cpuCap = 3.8
-                gpuCap = 1825.0
+                gpuCap = 1.825
                 memCap = 320L
                 gameInstancesPerCluster = instancesPerCluster
+                cpuIdleDraw = 12.0
+                cpuMaxDraw = 65.0
+                gpuIdleDraw = 36.0
+                gpuMaxDraw = 200.0
             }
-            "psnow" -> {
+            "psplus" -> {
                 cpuCount = 160
-                gpuCoresPerCard = 52060
-                graphicsCardPerCluster = 20
+                gpuCount = 20
                 cpuCap = 3.5
-                gpuCap = 2230.0
+                gpuCap = 2.23
                 memCap = 320L
                 gameInstancesPerCluster = instancesPerCluster
+                cpuIdleDraw = 12.0
+                cpuMaxDraw = 65.0
+                gpuIdleDraw = 33.0
+                gpuMaxDraw = 180.0
             }
-            "geforce now" -> {
+            "geforcenow" -> {
                 cpuCount = 160
-                gpuCoresPerCard = 143360
-                graphicsCardPerCluster = 40
+                gpuCount = 40
                 cpuCap = 3.5
-                gpuCap = 1320.0
+                gpuCap = 1.32
                 memCap = 1280L
                 gameInstancesPerCluster = instancesPerCluster
+                cpuIdleDraw = 23.0
+                cpuMaxDraw = 125.0
+                gpuIdleDraw = 27.0
+                gpuMaxDraw = 150.0
             }
             else -> throw IllegalArgumentException("Invalid platform: $platform")
         }
 
         val maxPlayers = usersPerHour.maxOrNull() ?: 0
-        val numClusters = (maxPlayers + gameInstancesPerCluster - 1) / gameInstancesPerCluster
-        val gpuCapPerCore = gpuCap / gpuCoresPerCard;
-        val gpuCoresCountPerVm = gpuCoresPerCard * graphicsCardPerCluster / gameInstancesPerCluster
+//        val numClusters = (maxPlayers + gameInstancesPerCluster - 1) / gameInstancesPerCluster
+        val numClusters = ceil(maxPlayers.toDouble() / gameInstancesPerCluster).toInt()
+        val partitionedGpuCap = (gpuCap * gpuCount) / gameInstancesPerCluster // the overall gpu capacity divided by the number of hosts
 
         // Generate topology file
         CloudGamingTopologyGenerator.generateTopologyTxt(
             numClusters = numClusters,
             cpuCoresPerCluster = cpuCount,
             cpuSpeed = cpuCap,
-            graphicsCard = GraphicsCard(gpuCoresPerCard, gpuCapPerCore),
-            graphicsCardPerCluster = graphicsCardPerCluster,
+            graphicsCardPerCluster = gpuCount,
+            gpuSpeed = gpuCap,
             memory = memCap,
-            numHosts = 1,
-            topologyName = "$platform-topology"
+            numHosts = gameInstancesPerCluster,
+            topologyName = "$platform-topology",
+            cpuIdleDraw = cpuIdleDraw,
+            cpuMaxDraw = cpuMaxDraw,
+            gpuIdleDraw = gpuIdleDraw,
+            gpuMaxDraw = gpuMaxDraw
         )
 
         // Generate trace file
@@ -81,11 +99,11 @@ object ExperimentGenerator {
             hours = hours,
             usersPerHour = usersPerHour,
             cpuCount = cpuCount / gameInstancesPerCluster,
-            cpuUsage = (cpuUtilization * cpuCap * 1000) * (cpuCount / gameInstancesPerCluster), // The CPU usage multiplied by the number of cores - CPU cap is per . Converting to MHz.
+            cpuUsage = (cpuUtilization * cpuCap * 1000) * (cpuCount / gameInstancesPerCluster), // The CPU usage multiplied by the number of cores - CPU cap is per core. Converting to MHz.
             cpuCap = cpuCap,
-            gpuCount = gpuCoresCountPerVm,
-            gpuUsage = (gpuUtilization * gpuCapPerCore) * gpuCoresCountPerVm, // The GPU usage divided by the number of cores - GPU cap is per card
-            gpuCap = gpuCap,
+            gpuCount = 1, // Currently we support one vGPU per host. But it is possible to change that later
+            gpuUsage = (gpuUtilization * partitionedGpuCap * 1000) * 1, // The GPU usage divided by the number of GPUs - GPU cap is per card. The 1 is left there for clarity.
+            gpuCap = partitionedGpuCap,
             memCap = memCap,
             outputDir = "$platform-trace"
         )

@@ -33,9 +33,9 @@ public interface Flavor : Resource {
     public val cpuCount: Int
 
     /**
-     * The number of (virtual) graphics processing cores to use.
+     * The amount of gpuCapacity available to the server (in MHz)
      */
-    public val gpuCount: Int
+    public val gpuCapacity: Double
 
     /**
      * The amount of RAM available to the server (in MB).

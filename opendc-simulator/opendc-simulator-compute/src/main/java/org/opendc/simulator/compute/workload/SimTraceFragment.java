@@ -33,7 +33,6 @@ public final class SimTraceFragment {
     final double cpuUsage;
     final double gpuUsage;
     final int cpuCores;
-    final int gpuCores;
 
     /**
      * Construct a {@link SimTraceFragment}.
@@ -43,15 +42,13 @@ public final class SimTraceFragment {
      * @param cpuUsage The CPU usage during the fragment (in MHz).
      * @param gpuUsage The GPU usage during the fragment (in MHz).
      * @param cpuCores The amount of CPU cores utilized during the fragment.
-     * @param gpuCores The amount of GPU cores utilized during the fragment.
      */
-    public SimTraceFragment(long timestamp, long duration, double cpuUsage, double gpuUsage, int cpuCores, int gpuCores) {
+    public SimTraceFragment(long timestamp, long duration, double cpuUsage, double gpuUsage, int cpuCores) {
         this.timestamp = timestamp;
         this.duration = duration;
         this.cpuUsage = cpuUsage;
         this.gpuUsage = gpuUsage;
         this.cpuCores = cpuCores;
-        this.gpuCores = gpuCores;
     }
 
     /**
@@ -68,7 +65,6 @@ public final class SimTraceFragment {
         this.cpuUsage = cpuUsage;
         this.gpuUsage = 0.0;
         this.cpuCores = cpuCores;
-        this.gpuCores = 0;
     }
 
     /**
@@ -106,13 +102,6 @@ public final class SimTraceFragment {
         return cpuCores;
     }
 
-    /**
-     * Return the amount of GPU cores utilized during the fragment.
-     */
-    public int getGpuCores() {
-        return gpuCores;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -122,12 +111,11 @@ public final class SimTraceFragment {
                 && duration == that.duration
                 && Double.compare(that.cpuUsage, cpuUsage) == 0
                 && Double.compare(that.gpuUsage, gpuUsage) == 0
-                && cpuCores == that.cpuCores
-                && gpuCores == that.gpuCores;
+                && cpuCores == that.cpuCores;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(timestamp, duration, cpuUsage, gpuUsage, cpuCores, gpuCores);
+        return Objects.hash(timestamp, duration, cpuUsage, gpuUsage, cpuCores);
     }
 }
