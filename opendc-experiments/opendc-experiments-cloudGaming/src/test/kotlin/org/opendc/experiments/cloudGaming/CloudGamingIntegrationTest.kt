@@ -148,12 +148,26 @@ class CloudGamingIntegrationTest {
     fun testGenCsv() = runSimulation {
 
         val tracesDir = "genTraces"
-        val usersPerHour = listOf(10, 15, 12, 10)
+//        val usersPerHour = listOf(10, 15, 12, 10)
+
+        val usersPerHour = listOf(1777, 1693, 1560, 1406, 1242, 1106, 1045, 1011, 973, 938,
+            949, 1031, 1182, 1357, 1563, 1779, 1925, 2013, 2074, 2096, 2029, 1961, 1890, 1826) //ip.inpvp // average 1517 users
 
         // generate new topology
-        CloudGamingTopologyGenerator.generateTopologyTxt(2, 8, 3.5, 2, 1.8, 128, 8, "testTopo", 80.0, 165.0, 50.0, 200.0)
+        CloudGamingTopologyGenerator.generateTopologyTxt(14, 160, 3.8, 20, 1.825, 320, 5, "testTopo", 12.0, 65.0, 36.0, 200.0)
         // generate new trace
-        CloudGamingTraceGenerator.generateTraceCsv(4, usersPerHour, 1, 1500.0, 3500.0, 1, 400.0, 450.0, 8000, tracesDir)
+        CloudGamingTraceGenerator.generateTraceCsv(24, usersPerHour, 32, 1140.0, 3.8, 1, 7300.0, 7.3, 320, tracesDir)
+
+
+//        // generate new topology
+//        CloudGamingTopologyGenerator.generateTopologyTxt(14, 160, 3.8, 20, 1.825, 320, 80, "testTopo", 12.0, 65.0, 36.0, 200.0)
+//        // generate new trace
+//        CloudGamingTraceGenerator.generateTraceCsv(24, usersPerHour, 2, 1140.0, 3.8, 1, 456.25, 0.45625, 320, tracesDir)
+
+        // generate new topology
+//        CloudGamingTopologyGenerator.generateTopologyTxt(14, 160, 3.8, 20, 1.825, 320, 160, "testTopo", 12.0, 65.0, 36.0, 200.0)
+//        // generate new trace
+//        CloudGamingTraceGenerator.generateTraceCsv(24, usersPerHour, 1, 1140.0, 3.8, 1, 228.125, 0.228125, 320, tracesDir)
 
         val seed = 1L
         val workload = getWorkload(tracesDir)
@@ -204,7 +218,7 @@ class CloudGamingIntegrationTest {
     @Test
     fun testBasicRun() = runSimulation {
 
-        val tracesDir = "psplus-trace"
+        val tracesDir = "geforcenow4k-trace"
 //        val usersPerHour = listOf(23454, 23438, 22608, 20648, 18228, 16121, 15079, 14475, 13902, 13821,
 //            14014, 14871, 16859, 18973, 21268, 23725, 25575, 26880, 28135, 28866, 28096, 26084, 24258, 23429)
 
@@ -216,11 +230,11 @@ class CloudGamingIntegrationTest {
 //        val usersPerHour = listOf(2345, 2343, 2260, 2064, 1822, 1612, 1507, 1447, 1390, 1382,
 //            1401, 1487, 1685, 1897, 2126, 2372, 2557, 2688, 2813, 2886, 2809, 2608, 2425, 2342)
 
-        ExperimentGenerator.generateExperiment("psplus", 0.5, 0.95, 24, usersPerHour)
+        ExperimentGenerator.generateExperiment("geforcenow4k", 0.4, 0.99, 24, usersPerHour)
 
         val seed = 1L
         val workload = getWorkload(tracesDir)
-        val topology = createTopology("psplus-topology")
+        val topology = createTopology("geforcenow4k-topology")
         val monitor = monitor
 
         Provisioner(dispatcher, seed).use { provisioner ->

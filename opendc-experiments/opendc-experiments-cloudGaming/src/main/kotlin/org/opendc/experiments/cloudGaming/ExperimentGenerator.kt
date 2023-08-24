@@ -70,6 +70,18 @@ object ExperimentGenerator {
                 gpuIdleDraw = 27.0
                 gpuMaxDraw = 150.0
             }
+            "geforcenow4k" -> {
+                cpuCount = 160
+                gpuCount = 40
+                cpuCap = 3.5
+                gpuCap = 1.5
+                memCap = 1280L
+                gameInstancesPerCluster = 40
+                cpuIdleDraw = 23.0
+                cpuMaxDraw = 125.0
+                gpuIdleDraw = 40.0
+                gpuMaxDraw = 220.0
+            }
             else -> throw IllegalArgumentException("Invalid platform: $platform")
         }
 

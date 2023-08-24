@@ -16,6 +16,16 @@ public class GpuPowerModels {
     }
 
     /**
+     * Construct a square root {@link GpuPowerModel} that is adapted from CloudSim.
+     *
+     * @param maxPower The maximum power draw of the server in W.
+     * @param idlePower The power draw of the server at its lowest utilization level in W.
+     */
+    public static GpuPowerModel sqrt(double maxPower, double idlePower) {
+        return new GpuPowerModels.SqrtPowerModel(maxPower, idlePower);
+    }
+
+    /**
      * Construct a linear {@link GpuPowerModel} that is adapted from CloudSim.
      *
      * @param maxPower The maximum power draw of the server in W.
@@ -23,6 +33,16 @@ public class GpuPowerModels {
      */
     public static GpuPowerModel linear(double maxPower, double idlePower) {
         return new LinearPowerModel(maxPower, idlePower);
+    }
+
+    /**
+     * Construct a cubic {@link GpuPowerModel} that is adapted from CloudSim.
+     *
+     * @param maxPower The maximum power draw of the server in W.
+     * @param idlePower The power draw of the server at its lowest utilization level in W.
+     */
+    public static GpuPowerModel cubic(double maxPower, double idlePower) {
+        return new GpuPowerModels.CubicPowerModel(maxPower, idlePower);
     }
 
     private static final class ConstantPowerModel implements GpuPowerModel {
@@ -58,6 +78,20 @@ public class GpuPowerModels {
         }
     }
 
+    private static final class SqrtPowerModel extends GpuPowerModels.MaxIdlePowerModel {
+        private final double factor;
+
+        SqrtPowerModel(double maxPower, double idlePower) {
+            super(maxPower, idlePower);
+            this.factor = (maxPower - idlePower) / Math.sqrt(100);
+        }
+
+        @Override
+        public double computePower(double utilization) {
+            return idlePower + factor * Math.sqrt(utilization * 100);
+        }
+    }
+
     private static final class LinearPowerModel extends MaxIdlePowerModel {
         private final double factor;
 
@@ -69,6 +103,20 @@ public class GpuPowerModels {
         @Override
         public double computePower(double utilization) {
             return idlePower + factor * utilization * 100;
+        }
+    }
+
+    private static final class CubicPowerModel extends GpuPowerModels.MaxIdlePowerModel {
+        private final double factor;
+
+        CubicPowerModel(double maxPower, double idlePower) {
+            super(maxPower, idlePower);
+            this.factor = (maxPower - idlePower) / Math.pow(100, 3);
+        }
+
+        @Override
+        public double computePower(double utilization) {
+            return idlePower + factor * Math.pow(utilization * 100, 3);
         }
     }
 }

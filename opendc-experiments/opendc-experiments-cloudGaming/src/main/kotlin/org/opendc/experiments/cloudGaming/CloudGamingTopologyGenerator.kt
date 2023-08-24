@@ -19,7 +19,7 @@ object CloudGamingTopologyGenerator {
      * @param cpuCoresPerCluster The number of CPU cores per cluster.
      * @param cpuSpeed The CPU speed in GHz.
      * @param graphicsCardPerCluster The number of graphics cards per cluster.
-     * @param cpuSpeed The GPU speed in GHz.
+     * @param gpuSpeed The GPU speed in GHz.
      * @param memory The memory capacity in GiB.
      * @param numHosts The number of hosts per cluster.
      * @param topologyName name of the topology file.

@@ -990,7 +990,7 @@ public final class SimHypervisor implements SimWorkload {
     }
 
     /**
-     * A GPU {@link SimProcessingUnit} of a virtual machine.
+     * A GPU {@link SimGraphicsProcessingUnit} of a virtual machine.
      */
     // TODO: pretty identical to VCpu. Remove if not needed, or leave for future additions
     private static final class VGpu implements SimGraphicsProcessingUnit {
