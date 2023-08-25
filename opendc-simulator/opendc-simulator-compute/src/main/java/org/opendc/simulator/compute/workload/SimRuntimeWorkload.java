@@ -72,7 +72,6 @@ public class SimRuntimeWorkload implements SimWorkload, FlowStageLogic {
         final FlowStage stage = graph.newStage(this);
         this.stage = stage;
 
-        //TODO: make sure it works without gpus
         final List<? extends SimProcessingUnit> cpus = ctx.getCpus();
         final List<? extends SimGraphicsProcessingUnit> gpus = ctx.getGpus();
         final OutPort[] outputs = new OutPort[cpus.size() + gpus.size()];

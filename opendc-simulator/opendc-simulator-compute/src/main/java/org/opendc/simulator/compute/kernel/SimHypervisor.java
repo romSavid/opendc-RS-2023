@@ -265,7 +265,7 @@ public final class SimHypervisor implements SimWorkload {
         final FlowMultiplexer cpuMultiplexer = context.cpuMultiplexer;
         final FlowMultiplexer gpuMultiplexer = context.gpuMultiplexer;
         return ((cpuMultiplexer.getMaxInputs() - cpuMultiplexer.getInputCount()) >= model.getCpus().size())
-            && ((gpuMultiplexer.getMaxInputs() - gpuMultiplexer.getInputCount()) >= model.getGpus().size()); // TODO verify it does not break runs without gpu
+            && ((gpuMultiplexer.getMaxInputs() - gpuMultiplexer.getInputCount()) >= model.getGpus().size());
     }
 
     @Override

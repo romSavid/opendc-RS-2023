@@ -197,7 +197,6 @@ public class SimPsuFactories {
         // SimplePsu has no GPU support
         @Override
         InPort getGpuPower(int id, GraphicsProcessingUnit model) {
-            //TODO: this breaks the Capelin tests, and probably more, fix.
             return null;
         }
 
