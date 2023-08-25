@@ -1,2 +1,0 @@
-ClusterID;ClusterName;cpuCores;cpuSpeed;gpuCores;gpuSpeed;Memory;numberOfHosts
-A01;A01;16;3.5;16;1.35;64;1
