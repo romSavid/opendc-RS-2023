@@ -24,6 +24,8 @@ package org.opendc.simulator.compute.workload;
 
 import java.util.List;
 import java.util.Map;
+
+import org.opendc.simulator.compute.SimGraphicsProcessingUnit;
 import org.opendc.simulator.compute.SimMachineContext;
 import org.opendc.simulator.compute.SimMemory;
 import org.opendc.simulator.compute.SimNetworkInterface;
@@ -126,6 +128,11 @@ final class SimChainWorkload implements SimWorkload {
         @Override
         public List<? extends SimProcessingUnit> getCpus() {
             return ctx.getCpus();
+        }
+
+        @Override
+        public List<? extends SimGraphicsProcessingUnit> getGpus() {
+            return ctx.getGpus();
         }
 
         @Override

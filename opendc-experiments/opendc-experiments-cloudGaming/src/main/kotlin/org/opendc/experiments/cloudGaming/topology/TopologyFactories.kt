@@ -26,12 +26,13 @@ package org.opendc.experiments.cloudGaming.topology
 
 import org.opendc.experiments.compute.topology.HostSpec
 import org.opendc.simulator.compute.SimPsuFactories
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit
 import org.opendc.simulator.compute.model.MachineModel
 import org.opendc.simulator.compute.model.MemoryUnit
 import org.opendc.simulator.compute.model.ProcessingNode
 import org.opendc.simulator.compute.model.ProcessingUnit
-import org.opendc.simulator.compute.power.CpuPowerModel
 import org.opendc.simulator.compute.power.CpuPowerModels
+import org.opendc.simulator.compute.power.GpuPowerModels
 import java.io.File
 import java.io.InputStream
 import java.util.SplittableRandom
@@ -49,10 +50,9 @@ private val reader = ClusterSpecReader()
  */
 fun clusterTopology(
     file: File,
-    powerModel: CpuPowerModel = CpuPowerModels.linear(350.0, 200.0),
     random: RandomGenerator = SplittableRandom(0)
 ): List<HostSpec> {
-    return clusterTopology(reader.read(file), powerModel, random)
+    return clusterTopology(reader.read(file), random)
 }
 
 /**
@@ -60,30 +60,34 @@ fun clusterTopology(
  */
 fun clusterTopology(
     input: InputStream,
-    powerModel: CpuPowerModel = CpuPowerModels.linear(350.0, 200.0),
     random: RandomGenerator = SplittableRandom(0)
 ): List<HostSpec> {
-    return clusterTopology(reader.read(input), powerModel, random)
+    return clusterTopology(reader.read(input), random)
 }
 
 /**
  * Construct a topology from the given list of [clusters].
  */
-fun clusterTopology(clusters: List<ClusterSpec>, powerModel: CpuPowerModel, random: RandomGenerator = SplittableRandom(0)): List<HostSpec> {
-    return clusters.flatMap { it.toHostSpecs(random, powerModel) }
+fun clusterTopology(clusters: List<ClusterSpec>, random: RandomGenerator = SplittableRandom(0)): List<HostSpec> {
+    return clusters.flatMap { it.toHostSpecs(random) }
 }
 
 /**
  * Helper method to convert a [ClusterSpec] into a list of [HostSpec]s.
  */
-private fun ClusterSpec.toHostSpecs(random: RandomGenerator, powerModel: CpuPowerModel): List<HostSpec> {
-    val cpuSpeed = cpuSpeed
+private fun ClusterSpec.toHostSpecs(random: RandomGenerator): List<HostSpec> {
     val memoryPerHost = memCapacityPerHost.roundToLong()
 
-    val unknownProcessingNode = ProcessingNode("unknown", "unknown", "unknown", cpuCountPerHost)
+    val unknownCpuProcessingNode = ProcessingNode("unknown", "unknown", "unknown", cpuCountPerHost)
+    val virtualGpuCapacity = (gpuCapacity * gpuCount) / hostCount;
     val unknownMemoryUnit = MemoryUnit("unknown", "unknown", -1.0, memoryPerHost)
+
+    val cpuCores = List(cpuCountPerHost) { coreId -> ProcessingUnit(unknownCpuProcessingNode, coreId, cpuCapacity) }
+    val vGpus = List(1) { _ -> GraphicsProcessingUnit("unknown", "unknown", "unknown", virtualGpuCapacity) } // currently we added support for one vGPU, that could be changed later
+
     val machineModel = MachineModel(
-        List(cpuCountPerHost) { coreId -> ProcessingUnit(unknownProcessingNode, coreId, cpuSpeed) },
+        cpuCores,
+        vGpus,
         listOf(unknownMemoryUnit)
     )
 
@@ -93,7 +97,7 @@ private fun ClusterSpec.toHostSpecs(random: RandomGenerator, powerModel: CpuPowe
             "node-$name-$it",
             mapOf("cluster" to id),
             machineModel,
-            SimPsuFactories.simple(powerModel)
+            SimPsuFactories.simpleGaming(CpuPowerModels.linear(cpuMaxDraw, cpuIdleDraw), GpuPowerModels.linear(gpuMaxDraw, gpuIdleDraw))
         )
     }
 }

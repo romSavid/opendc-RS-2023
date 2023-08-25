@@ -30,22 +30,41 @@ import java.util.Objects;
 public final class SimTraceFragment {
     final long timestamp;
     final long duration;
-    final double usage;
-    final int cores;
+    final double cpuUsage;
+    final double gpuUsage;
+    final int cpuCores;
 
     /**
      * Construct a {@link SimTraceFragment}.
      *
      * @param timestamp The timestamp at which the fragment starts (in epoch millis).
      * @param duration The duration of the fragment (in milliseconds).
-     * @param usage The CPU usage during the fragment (in MHz).
-     * @param cores The amount of cores utilized during the fragment.
+     * @param cpuUsage The CPU usage during the fragment (in MHz).
+     * @param gpuUsage The GPU usage during the fragment (in MHz).
+     * @param cpuCores The amount of CPU cores utilized during the fragment.
      */
-    public SimTraceFragment(long timestamp, long duration, double usage, int cores) {
+    public SimTraceFragment(long timestamp, long duration, double cpuUsage, double gpuUsage, int cpuCores) {
         this.timestamp = timestamp;
         this.duration = duration;
-        this.usage = usage;
-        this.cores = cores;
+        this.cpuUsage = cpuUsage;
+        this.gpuUsage = gpuUsage;
+        this.cpuCores = cpuCores;
+    }
+
+    /**
+     * Construct a {@link SimTraceFragment}.
+     *
+     * @param timestamp The timestamp at which the fragment starts (in epoch millis).
+     * @param duration The duration of the fragment (in milliseconds).
+     * @param cpuUsage The CPU usage during the fragment (in MHz).
+     * @param cpuCores The amount of CPU cores utilized during the fragment.
+     */
+    public SimTraceFragment(long timestamp, long duration, double cpuUsage, int cpuCores) {
+        this.timestamp = timestamp;
+        this.duration = duration;
+        this.cpuUsage = cpuUsage;
+        this.gpuUsage = 0.0;
+        this.cpuCores = cpuCores;
     }
 
     /**
@@ -65,15 +84,22 @@ public final class SimTraceFragment {
     /**
      * Return the CPU usage during the fragment (in MHz).
      */
-    public double getUsage() {
-        return usage;
+    public double getCpuUsage() {
+        return cpuUsage;
     }
 
     /**
-     * Return the amount of cores utilized during the fragment.
+     * Return the GPU usage during the fragment (in MHz).
      */
-    public int getCores() {
-        return cores;
+    public double getGpuUsage() {
+        return gpuUsage;
+    }
+
+    /**
+     * Return the amount of CPU cores utilized during the fragment.
+     */
+    public int getCpuCores() {
+        return cpuCores;
     }
 
     @Override
@@ -83,12 +109,13 @@ public final class SimTraceFragment {
         SimTraceFragment that = (SimTraceFragment) o;
         return timestamp == that.timestamp
                 && duration == that.duration
-                && Double.compare(that.usage, usage) == 0
-                && cores == that.cores;
+                && Double.compare(that.cpuUsage, cpuUsage) == 0
+                && Double.compare(that.gpuUsage, gpuUsage) == 0
+                && cpuCores == that.cpuCores;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(timestamp, duration, usage, cores);
+        return Objects.hash(timestamp, duration, cpuUsage, gpuUsage, cpuCores);
     }
 }

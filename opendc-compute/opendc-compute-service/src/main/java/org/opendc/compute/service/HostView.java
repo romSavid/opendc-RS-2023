@@ -32,6 +32,7 @@ public class HostView {
     int instanceCount;
     long availableMemory;
     int provisionedCores;
+    double availableGpuCapacity;
 
     /**
      * Construct a {@link HostView} instance.
@@ -70,6 +71,7 @@ public class HostView {
     public int getProvisionedCores() {
         return provisionedCores;
     }
+    public double getAvailableGpuCapacity() { return availableGpuCapacity; }
 
     @Override
     public String toString() {

@@ -30,8 +30,10 @@ import org.opendc.compute.service.driver.HostListener
 import org.opendc.compute.service.driver.HostModel
 import org.opendc.compute.service.driver.HostState
 import org.opendc.compute.service.driver.telemetry.GuestCpuStats
+import org.opendc.compute.service.driver.telemetry.GuestGpuStats
 import org.opendc.compute.service.driver.telemetry.GuestSystemStats
 import org.opendc.compute.service.driver.telemetry.HostCpuStats
+import org.opendc.compute.service.driver.telemetry.HostGpuStats
 import org.opendc.compute.service.driver.telemetry.HostSystemStats
 import org.opendc.compute.simulator.internal.DefaultWorkloadMapper
 import org.opendc.compute.simulator.internal.Guest
@@ -39,6 +41,7 @@ import org.opendc.compute.simulator.internal.GuestListener
 import org.opendc.simulator.compute.SimBareMetalMachine
 import org.opendc.simulator.compute.SimMachineContext
 import org.opendc.simulator.compute.kernel.SimHypervisor
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit
 import org.opendc.simulator.compute.model.MachineModel
 import org.opendc.simulator.compute.model.MemoryUnit
 import org.opendc.simulator.compute.model.ProcessingNode
@@ -98,6 +101,7 @@ public class SimHost(
     private val model: HostModel = HostModel(
         machine.model.cpus.sumOf { it.frequency },
         machine.model.cpus.size,
+        machine.model.gpus.sumOf { it.frequency },
         machine.model.memory.sumOf { it.size }
     )
 
@@ -145,9 +149,10 @@ public class SimHost(
     override fun canFit(server: Server): Boolean {
         val sufficientMemory = model.memoryCapacity >= server.flavor.memorySize
         val enoughCpus = model.cpuCount >= server.flavor.cpuCount
+        val enoughGpus = model.gpuCapacity >= server.flavor.gpuCapacity
         val canFit = hypervisor.canFit(server.flavor.toMachineModel())
 
-        return sufficientMemory && enoughCpus && canFit
+        return sufficientMemory && enoughCpus && enoughGpus && canFit
     }
 
     override fun spawn(server: Server) {
@@ -259,9 +264,26 @@ public class SimHost(
         )
     }
 
+    public fun getGpuStats(): HostGpuStats {
+        val counters = hypervisor.counters
+        counters.sync()
+
+        return HostGpuStats(
+            hypervisor.gpuCapacity,
+            hypervisor.gpuDemand,
+            hypervisor.gpuUsage,
+            hypervisor.gpuUsage / _gpuLimit
+        )
+    }
+
     override fun getCpuStats(server: Server): GuestCpuStats {
         val guest = requireNotNull(guests[server]) { "Unknown server ${server.uid} at host $uid" }
         return guest.getCpuStats()
+    }
+
+    public fun getGpuStats(server: Server): GuestGpuStats {
+        val guest = requireNotNull(guests[server]) { "Unknown server ${server.uid} at host $uid" }
+        return guest.getGpuStats()
     }
 
     override fun hashCode(): Int = uid.hashCode()
@@ -346,9 +368,20 @@ public class SimHost(
         val cpuCapacity = (this.meta["cpu-capacity"] as? Double ?: Double.MAX_VALUE).coerceAtMost(originalCpu.frequency)
         val processingNode = ProcessingNode(originalNode.vendor, originalNode.modelName, originalNode.architecture, cpuCount)
         val processingUnits = (0 until cpuCount).map { ProcessingUnit(processingNode, it, cpuCapacity) }
+
+        var graphicsProcessingUnits: List<GraphicsProcessingUnit>
+        if (machine.model.gpus.isNotEmpty()) {
+            val originalGpu = machine.model.gpus[0]
+            val gpuCapacity = (this.meta["gpu-capacity"] as? Double ?: Double.MAX_VALUE).coerceAtMost(originalGpu.frequency)
+            graphicsProcessingUnits = listOf(GraphicsProcessingUnit(originalGpu.vendor, originalGpu.modelName, originalGpu.architecture, gpuCapacity))
+        }
+        else {
+            graphicsProcessingUnits = listOf()
+        }
+
         val memoryUnits = listOf(MemoryUnit("Generic", "Generic", 3200.0, memorySize))
 
-        val model = MachineModel(processingUnits, memoryUnits)
+        val model = MachineModel(processingUnits, graphicsProcessingUnits, memoryUnits)
         return if (optimize) model.optimize() else model
     }
 
@@ -357,6 +390,7 @@ public class SimHost(
     private var _downtime = 0L
     private var _bootTime: Instant? = null
     private val _cpuLimit = machine.model.cpus.sumOf { it.frequency }
+    private val _gpuLimit = machine.model.gpus.sumOf { it.frequency }
 
     /**
      * Helper function to track the uptime of a machine.

@@ -61,6 +61,18 @@ public val RESOURCE_CPU_COUNT: String = "cpu_count"
 public val RESOURCE_CPU_CAPACITY: String = "cpu_capacity"
 
 /**
+ * Number of GPUs for the resource.
+ */
+@JvmField
+public val RESOURCE_GPU_COUNT: String = "gpu_count"
+
+/**
+ * Total GPU capacity of the resource in MHz.
+ */
+@JvmField
+public val RESOURCE_GPU_CAPACITY: String = "gpu_capacity"
+
+/**
  * Memory capacity for the resource in KB.
  */
 @JvmField

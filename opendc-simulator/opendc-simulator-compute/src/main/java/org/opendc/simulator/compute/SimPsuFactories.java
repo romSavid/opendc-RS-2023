@@ -24,8 +24,11 @@ package org.opendc.simulator.compute;
 
 import java.time.InstantSource;
 import org.jetbrains.annotations.NotNull;
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit;
 import org.opendc.simulator.compute.model.ProcessingUnit;
 import org.opendc.simulator.compute.power.CpuPowerModel;
+import org.opendc.simulator.compute.power.GpuPowerModel;
+import org.opendc.simulator.compute.power.GpuPowerModels;
 import org.opendc.simulator.flow2.FlowGraph;
 import org.opendc.simulator.flow2.FlowStage;
 import org.opendc.simulator.flow2.FlowStageLogic;
@@ -59,6 +62,18 @@ public class SimPsuFactories {
      */
     public static SimPsuFactory simple(CpuPowerModel model) {
         return (machine, graph) -> new SimplePsu(graph, model);
+    }
+
+    /**
+     * Return a {@link SimPsuFactory} of {@link SimPsu} implementations that use a {@link CpuPowerModel}
+     * and {@link org.opendc.simulator.compute.power.GpuPowerModel} to estimate the
+     * power consumption of a machine based on its CPU and GPU utilization.
+     *
+     * @param cpuPowerModel The power model to estimate the power consumption based on the CPU usage.
+     * @param gpuPowerModel The power model to estimate the power consumption based on the GPU usage.
+     */
+    public static SimPsuFactory simpleGaming(CpuPowerModel cpuPowerModel, GpuPowerModel gpuPowerModel) {
+        return (machine, graph) -> new SimpleGamingPsu(graph, cpuPowerModel, gpuPowerModel);
     }
 
     /**
@@ -96,6 +111,12 @@ public class SimPsuFactories {
             final InPort port = stage.getInlet("cpu" + id);
             port.setMask(true);
             return port;
+        }
+
+        // NoopPsu has no GPU support
+        @Override
+        InPort getGpuPower(int id, GraphicsProcessingUnit model) {
+            return null;
         }
 
         @Override
@@ -173,6 +194,12 @@ public class SimPsuFactories {
             return port;
         }
 
+        // SimplePsu has no GPU support
+        @Override
+        InPort getGpuPower(int id, GraphicsProcessingUnit model) {
+            return null;
+        }
+
         @Override
         void setCpuFrequency(InPort port, double capacity) {
             targetFreq += -port.getCapacity() + capacity;
@@ -187,6 +214,142 @@ public class SimPsuFactories {
             double usage = model.computePower(totalUsage / targetFreq);
             out.push((float) usage);
             powerUsage = usage;
+
+            return Long.MAX_VALUE;
+        }
+
+        @NotNull
+        @Override
+        public Outlet getFlowOutlet() {
+            return out;
+        }
+
+        /**
+         * Calculate the energy usage up until <code>now</code>.
+         */
+        private void updateEnergyUsage(long now) {
+            long lastUpdate = this.lastUpdate;
+            this.lastUpdate = now;
+
+            long duration = now - lastUpdate;
+            if (duration > 0) {
+                // Compute the energy usage of the machine
+                energyUsage += powerUsage * duration * 0.001;
+            }
+        }
+    }
+
+    /**
+     * A {@link SimPsu} implementation that estimates the power consumption based on CPU and GPU usage.
+     */
+    private static final class SimpleGamingPsu extends SimPsu implements FlowStageLogic {
+        private final FlowStage stage;
+        private final OutPort out;
+        private final CpuPowerModel cpuPowerModel;
+        private final GpuPowerModel gpuPowerModel;
+        private final InstantSource clock;
+
+        private double cpuTargetFreq;
+        private double gpuTargetFreq;
+        private double cpuTotalUsage;
+        private double gpuTotalUsage;
+        private long lastUpdate;
+
+        private double powerUsage;
+        private double energyUsage;
+
+        private final InHandler handler = new InHandler() {
+            @Override
+            public void onPush(InPort port, float demand) {
+                if (port.getName().contains("gpu")) {
+                    gpuTotalUsage += -port.getDemand() + demand;
+                }
+                else {
+                    cpuTotalUsage += -port.getDemand() + demand;
+                }
+            }
+
+            @Override
+            public void onUpstreamFinish(InPort port, Throwable cause) {
+                if (port.getName().contains("gpu")) {
+                    gpuTotalUsage -= port.getDemand();
+                }
+                else {
+                    cpuTotalUsage -= port.getDemand();
+                }
+            }
+        };
+
+        SimpleGamingPsu(FlowGraph graph, CpuPowerModel cpuPowerModel, GpuPowerModel gpuPowerModel) {
+            this.stage = graph.newStage(this);
+            this.cpuPowerModel = cpuPowerModel;
+            this.gpuPowerModel = gpuPowerModel;
+            this.clock = graph.getEngine().getClock();
+            this.out = stage.getOutlet("out");
+            this.out.setMask(true);
+
+            lastUpdate = graph.getEngine().getClock().millis();
+        }
+
+        @Override
+        public double getPowerDemand() {
+            return cpuTotalUsage + gpuTotalUsage;
+        }
+
+        @Override
+        public double getPowerUsage() {
+            return powerUsage;
+        }
+
+        @Override
+        public double getEnergyUsage() {
+            updateEnergyUsage(clock.millis());
+            return energyUsage;
+        }
+
+        @Override
+        InPort getCpuPower(int id, ProcessingUnit model) {
+            cpuTargetFreq += model.getFrequency();
+
+            final InPort port = stage.getInlet("cpu" + id);
+            port.setHandler(handler);
+            return port;
+        }
+
+        @Override
+        InPort getGpuPower(int id, GraphicsProcessingUnit model) {
+            gpuTargetFreq += model.getFrequency();
+
+            final InPort port = stage.getInlet("gpu" + id);
+            port.setHandler(handler);
+            return port;
+        }
+
+        @Override
+        void setCpuFrequency(InPort port, double capacity) {
+            cpuTargetFreq += -port.getCapacity() + capacity;
+
+            super.setCpuFrequency(port, capacity);
+        }
+
+        @Override
+        void setGpuFrequency(InPort port, double capacity) {
+            gpuTargetFreq += -port.getCapacity() + capacity;
+
+            super.setGpuFrequency(port, capacity);
+        }
+
+        @Override
+        public long onUpdate(FlowStage ctx, long now) {
+            updateEnergyUsage(now);
+
+            double cpuUsage = cpuPowerModel.computePower(cpuTotalUsage / cpuTargetFreq);
+            double gpuUsage = gpuPowerModel.computePower(gpuTotalUsage / gpuTargetFreq);
+
+            double totalUsage = cpuUsage + gpuUsage;
+
+            out.push((float) totalUsage);
+            powerUsage = totalUsage;
 
             return Long.MAX_VALUE;
         }

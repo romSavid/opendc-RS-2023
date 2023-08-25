@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.opendc.simulator.compute.device.SimPeripheral;
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit;
 import org.opendc.simulator.compute.model.MachineModel;
 import org.opendc.simulator.compute.model.ProcessingUnit;
 import org.opendc.simulator.compute.workload.SimWorkload;
@@ -54,10 +55,14 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
     private final SimPsu psu;
 
     /**
-     * The resources of this machine.
+     * The CPU resources of this machine.
      */
     private final List<Cpu> cpus;
 
+    /**
+     * The GPU resources of this machine.
+     */
+    private final List<Gpu> gpus;
     private final Memory memory;
     private final List<NetworkAdapter> net;
     private final List<StorageDevice> disk;
@@ -76,10 +81,17 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
         this.psu = psuFactory.newPsu(this, graph);
 
         int cpuIndex = 0;
+        int gpuIndex = 0;
+
         final ArrayList<Cpu> cpus = new ArrayList<>();
+        final ArrayList<Gpu> gpus = new ArrayList<>();
         this.cpus = cpus;
+        this.gpus = gpus;
         for (ProcessingUnit cpu : model.getCpus()) {
             cpus.add(new Cpu(psu, cpu, cpuIndex++));
+        }
+        for (GraphicsProcessingUnit gpu : model.getGpus()) {
+            gpus.add(new Gpu(psu, gpu, gpuIndex++));
         }
 
         this.memory = new Memory(graph, model.getMemory());
@@ -155,6 +167,25 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
     }
 
     /**
+     * Return the GPU capacity of the machine in MHz.
+     */
+    public double getGpuCapacity() {
+        final Context context = (Context) getActiveContext();
+
+        if (context == null) {
+            return 0.0;
+        }
+
+        float capacity = 0.f;
+
+        for (SimGraphicsProcessingUnit gpu : context.gpus) {
+            capacity += gpu.getFrequency();
+        }
+
+        return capacity;
+    }
+
+    /**
      * The CPU demand of the machine in MHz.
      */
     public double getCpuDemand() {
@@ -168,6 +199,25 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
 
         for (SimProcessingUnit cpu : context.cpus) {
             demand += cpu.getDemand();
+        }
+
+        return demand;
+    }
+
+    /**
+     * The GPU demand of the machine in MHz.
+     */
+    public double getGpuDemand() {
+        final Context context = (Context) getActiveContext();
+
+        if (context == null) {
+            return 0.0;
+        }
+
+        float demand = 0.f;
+
+        for (SimGraphicsProcessingUnit gpu : context.gpus) {
+            demand += gpu.getDemand();
         }
 
         return demand;
@@ -192,6 +242,25 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
         return rate;
     }
 
+    /**
+     * The GPU usage of the machine in MHz.
+     */
+    public double getGpuUsage() {
+        final Context context = (Context) getActiveContext();
+
+        if (context == null) {
+            return 0.0;
+        }
+
+        float rate = 0.f;
+
+        for (SimGraphicsProcessingUnit gpu : context.gpus) {
+            rate += gpu.getSpeed();
+        }
+
+        return rate;
+    }
+
     @Override
     protected SimAbstractMachine.Context createContext(
             SimWorkload workload, Map<String, Object> meta, Consumer<Exception> completion) {
@@ -204,6 +273,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
     private static final class Context extends SimAbstractMachine.Context {
         private final FlowGraph graph;
         private final List<Cpu> cpus;
+        private final List<Gpu> gpus;
         private final Memory memory;
         private final List<NetworkAdapter> net;
         private final List<StorageDevice> disk;
@@ -217,6 +287,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
 
             this.graph = machine.graph;
             this.cpus = machine.cpus;
+            this.gpus = machine.gpus;
             this.memory = machine.memory;
             this.net = machine.net;
             this.disk = machine.disk;
@@ -230,6 +301,11 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
         @Override
         public List<? extends SimProcessingUnit> getCpus() {
             return cpus;
+        }
+
+        @Override
+        public List<? extends SimGraphicsProcessingUnit> getGpus() {
+            return gpus;
         }
 
         @Override
@@ -249,7 +325,7 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
     }
 
     /**
-     * A {@link SimProcessingUnit} of a bare-metal machine.
+     * A CPU {@link SimProcessingUnit} of a bare-metal machine.
      */
     private static final class Cpu implements SimProcessingUnit {
         private final SimPsu psu;
@@ -299,6 +375,60 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
         @Override
         public String toString() {
             return "SimBareMetalMachine.Cpu[model=" + model + "]";
+        }
+    }
+
+    /**
+     * A GPU {@link SimGraphicsProcessingUnit} of a bare-metal machine.
+     */
+    private static final class Gpu implements SimGraphicsProcessingUnit {
+        private final SimPsu psu;
+        private final GraphicsProcessingUnit model;
+        private final InPort port;
+
+        private Gpu(SimPsu psu, GraphicsProcessingUnit model, int id) {
+            this.psu = psu;
+            this.model = model;
+            this.port = psu.getGpuPower(id, model);
+
+            this.port.pull((float) model.getFrequency());
+        }
+
+        @Override
+        public double getFrequency() {
+            return port.getCapacity();
+        }
+
+        @Override
+        public void setFrequency(double frequency) {
+            // Clamp the capacity of the GPU between [0.0, maxFreq]
+            frequency = Math.max(0, Math.min(model.getFrequency(), frequency));
+            psu.setCpuFrequency(port, frequency);
+        }
+
+        @Override
+        public double getDemand() {
+            return port.getDemand();
+        }
+
+        @Override
+        public double getSpeed() {
+            return port.getRate();
+        }
+
+        @Override
+        public GraphicsProcessingUnit getModel() {
+            return model;
+        }
+
+        @Override
+        public Inlet getInput() {
+            return port;
+        }
+
+        @Override
+        public String toString() {
+            return "SimBareMetalMachine.Gpu[model=" + model + "]";
         }
     }
 }

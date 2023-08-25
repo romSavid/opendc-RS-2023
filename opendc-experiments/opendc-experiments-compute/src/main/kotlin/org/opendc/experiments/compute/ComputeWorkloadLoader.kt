@@ -137,6 +137,7 @@ public class ComputeWorkloadLoader(private val baseDir: File) {
                         id,
                         cpuCount,
                         cpuCapacity,
+                        0.0,
                         memCapacity.roundToLong(),
                         totalLoad,
                         submissionTime,

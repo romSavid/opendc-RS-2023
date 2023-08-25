@@ -23,6 +23,8 @@
 package org.opendc.simulator.compute.workload;
 
 import java.util.List;
+
+import org.opendc.simulator.compute.SimGraphicsProcessingUnit;
 import org.opendc.simulator.compute.SimMachineContext;
 import org.opendc.simulator.compute.SimProcessingUnit;
 import org.opendc.simulator.flow2.FlowGraph;
@@ -71,7 +73,8 @@ public class SimRuntimeWorkload implements SimWorkload, FlowStageLogic {
         this.stage = stage;
 
         final List<? extends SimProcessingUnit> cpus = ctx.getCpus();
-        final OutPort[] outputs = new OutPort[cpus.size()];
+        final List<? extends SimGraphicsProcessingUnit> gpus = ctx.getGpus();
+        final OutPort[] outputs = new OutPort[cpus.size() + gpus.size()];
         this.outputs = outputs;
 
         for (int i = 0; i < cpus.size(); i++) {
@@ -80,6 +83,13 @@ public class SimRuntimeWorkload implements SimWorkload, FlowStageLogic {
 
             graph.connect(output, cpu.getInput());
             outputs[i] = output;
+        }
+        for (int i = 0; i < gpus.size(); i++) {
+            final SimGraphicsProcessingUnit gpu = gpus.get(i);
+            final OutPort output = stage.getOutlet("gpu" + i);
+
+            graph.connect(output, gpu.getInput());
+            outputs[i + cpus.size()] = output;
         }
 
         this.remainingDuration = duration;

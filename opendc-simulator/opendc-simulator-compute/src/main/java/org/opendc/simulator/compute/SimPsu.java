@@ -22,6 +22,7 @@
 
 package org.opendc.simulator.compute;
 
+import org.opendc.simulator.compute.model.GraphicsProcessingUnit;
 import org.opendc.simulator.compute.model.ProcessingUnit;
 import org.opendc.simulator.flow2.InPort;
 import org.opendc.simulator.power.SimPowerInlet;
@@ -60,12 +61,31 @@ public abstract class SimPsu extends SimPowerInlet {
     abstract InPort getCpuPower(int id, ProcessingUnit model);
 
     /**
+     * Return an {@link InPort} that converts processing demand (in MHz) into energy demand (J) for the specified GPU
+     * <code>model</code>.
+     *
+     * @param id The unique identifier of the GPU for this machine.
+     * @param model The details of the graphics processing unit.
+     */
+    abstract InPort getGpuPower(int id, GraphicsProcessingUnit model);
+
+    /**
      * This method is invoked when the CPU frequency is changed for the specified <code>port</code>.
      *
      * @param port The {@link InPort} for which the capacity is changed.
      * @param capacity The capacity to change to.
      */
     void setCpuFrequency(InPort port, double capacity) {
+        port.pull((float) capacity);
+    }
+
+    /**
+     * This method is invoked when the GPU frequency is changed for the specified <code>port</code>.
+     *
+     * @param port The {@link InPort} for which the capacity is changed.
+     * @param capacity The capacity to change to.
+     */
+    void setGpuFrequency(InPort port, double capacity) {
         port.pull((float) capacity);
     }
 }

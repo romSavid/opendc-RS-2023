@@ -172,6 +172,7 @@ public final class ComputeService implements AutoCloseable {
                 final ServiceFlavor flavor = serviceServer.getFlavor();
                 if (hv != null) {
                     hv.provisionedCores -= flavor.getCpuCount();
+                    hv.availableGpuCapacity -= flavor.getGpuCapacity();
                     hv.instanceCount--;
                     hv.availableMemory += flavor.getMemorySize();
                 } else {
@@ -185,6 +186,7 @@ public final class ComputeService implements AutoCloseable {
     };
 
     private int maxCores = 0;
+    private double maxGpuCapacity = 0;
     private long maxMemory = 0L;
     private long attemptsSuccess = 0L;
     private long attemptsFailure = 0L;
@@ -238,6 +240,7 @@ public final class ComputeService implements AutoCloseable {
         HostModel model = host.getModel();
 
         maxCores = Math.max(maxCores, model.cpuCount());
+        maxGpuCapacity = Math.max(maxGpuCapacity, model.gpuCapacity());
         maxMemory = Math.max(maxMemory, model.memoryCapacity());
         hostToView.put(host, hv);
 
@@ -370,7 +373,7 @@ public final class ComputeService implements AutoCloseable {
                 LOGGER.trace(
                         "Server {} selected for scheduling but no capacity available for it at the moment", server);
 
-                if (flavor.getMemorySize() > maxMemory || flavor.getCpuCount() > maxCores) {
+                if (flavor.getMemorySize() > maxMemory || flavor.getCpuCount() > maxCores || flavor.getGpuCapacity() > maxGpuCapacity) {
                     // Remove the incoming image
                     queue.poll();
                     serversPending--;
@@ -404,6 +407,7 @@ public final class ComputeService implements AutoCloseable {
 
                 hv.instanceCount++;
                 hv.provisionedCores += flavor.getCpuCount();
+                hv.availableGpuCapacity += flavor.getGpuCapacity();
                 hv.availableMemory -= flavor.getMemorySize();
 
                 activeServers.put(server, host);
@@ -482,6 +486,7 @@ public final class ComputeService implements AutoCloseable {
         public Flavor newFlavor(
                 @NotNull String name,
                 int cpuCount,
+                double gpuCapacity,
                 long memorySize,
                 @NotNull Map<String, String> labels,
                 @NotNull Map<String, ?> meta) {
@@ -489,7 +494,7 @@ public final class ComputeService implements AutoCloseable {
 
             final ComputeService service = this.service;
             UUID uid = new UUID(service.clock.millis(), service.random.nextLong());
-            ServiceFlavor flavor = new ServiceFlavor(service, uid, name, cpuCount, memorySize, labels, meta);
+            ServiceFlavor flavor = new ServiceFlavor(service, uid, name, cpuCount, gpuCapacity, memorySize, labels, meta);
 
             service.flavorById.put(uid, flavor);
             service.flavors.add(flavor);

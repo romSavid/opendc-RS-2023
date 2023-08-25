@@ -26,6 +26,7 @@ import mu.KotlinLogging
 import org.opendc.compute.api.Server
 import org.opendc.compute.api.ServerState
 import org.opendc.compute.service.driver.telemetry.GuestCpuStats
+import org.opendc.compute.service.driver.telemetry.GuestGpuStats
 import org.opendc.compute.service.driver.telemetry.GuestSystemStats
 import org.opendc.compute.simulator.SimHost
 import org.opendc.compute.simulator.SimWorkloadMapper
@@ -156,6 +157,21 @@ internal class Guest(
     }
 
     /**
+     * Obtain the GPU statistics of this guest.
+     */
+    fun getGpuStats(): GuestGpuStats {
+        val counters = machine.counters
+        counters.sync()
+
+        return GuestGpuStats(
+            machine.gpuCapacity,
+            machine.gpuDemand,
+            machine.gpuUsage,
+            machine.gpuUsage / _gpuLimit
+        )
+    }
+
+    /**
      * The [SimMachineContext] representing the current active virtual machine instance or `null` if no virtual machine
      * is active.
      */
@@ -219,6 +235,7 @@ internal class Guest(
     private var _lastReport = clock.millis()
     private var _bootTime: Instant? = null
     private val _cpuLimit = machine.model.cpus.sumOf { it.frequency }
+    private val _gpuLimit = machine.model.gpus.sumOf { it.frequency }
 
     /**
      * Helper function to track the uptime and downtime of the guest.

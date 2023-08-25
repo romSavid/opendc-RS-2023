@@ -33,6 +33,11 @@ public interface Flavor : Resource {
     public val cpuCount: Int
 
     /**
+     * The amount of gpuCapacity available to the server (in MHz)
+     */
+    public val gpuCapacity: Double
+
+    /**
      * The amount of RAM available to the server (in MB).
      */
     public val memorySize: Long

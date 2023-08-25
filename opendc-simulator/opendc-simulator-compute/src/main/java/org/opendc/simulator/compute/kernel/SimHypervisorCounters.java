@@ -32,9 +32,19 @@ public interface SimHypervisorCounters {
     long getCpuActiveTime();
 
     /**
+     * Return the amount of time (in milliseconds) the CPUs of the hypervisor were actively running.
+     */
+    long getGpuActiveTime();
+
+    /**
      * Return the amount of time (in milliseconds) the CPUs of the hypervisor were idle.
      */
     long getCpuIdleTime();
+
+    /**
+     * Return the amount of time (in milliseconds) the CPUs of the hypervisor were idle.
+     */
+    long getGpuIdleTime();
 
     /**
      * Return the amount of CPU time (in milliseconds) that virtual machines were ready to run, but were not able to.
@@ -42,9 +52,19 @@ public interface SimHypervisorCounters {
     long getCpuStealTime();
 
     /**
+     * Return the amount of CPU time (in milliseconds) that virtual machines were ready to run, but were not able to.
+     */
+    long getGpuStealTime();
+
+    /**
      * Return the amount of CPU time (in milliseconds) that was lost due to interference between virtual machines.
      */
     long getCpuLostTime();
+
+    /**
+     * Return the amount of CPU time (in milliseconds) that was lost due to interference between virtual machines.
+     */
+    long getGpuLostTime();
 
     /**
      * Synchronize the counter values.

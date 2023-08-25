@@ -49,6 +49,12 @@ public val RESOURCE_STATE_POWERED_ON: String = "powered_on"
 public val RESOURCE_STATE_CPU_USAGE: String = "cpu_usage"
 
 /**
+ * Total GPU usage of the resource in MHz.
+ */
+@JvmField
+public val RESOURCE_STATE_GPU_USAGE: String = "gpu_usage"
+
+/**
  * Total CPU usage of the resource in percentage.
  */
 @JvmField
