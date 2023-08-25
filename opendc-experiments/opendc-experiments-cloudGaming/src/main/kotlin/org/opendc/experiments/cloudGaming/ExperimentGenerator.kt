@@ -86,7 +86,6 @@ object ExperimentGenerator {
         }
 
         val maxPlayers = usersPerHour.maxOrNull() ?: 0
-//        val numClusters = (maxPlayers + gameInstancesPerCluster - 1) / gameInstancesPerCluster
         val numClusters = ceil(maxPlayers.toDouble() / gameInstancesPerCluster).toInt()
         val partitionedGpuCap = (gpuCap * gpuCount) / gameInstancesPerCluster // the overall gpu capacity divided by the number of hosts
 

@@ -31,9 +31,7 @@ import org.opendc.simulator.compute.model.MachineModel
 import org.opendc.simulator.compute.model.MemoryUnit
 import org.opendc.simulator.compute.model.ProcessingNode
 import org.opendc.simulator.compute.model.ProcessingUnit
-import org.opendc.simulator.compute.power.CpuPowerModel
 import org.opendc.simulator.compute.power.CpuPowerModels
-import org.opendc.simulator.compute.power.GpuPowerModel
 import org.opendc.simulator.compute.power.GpuPowerModels
 import java.io.File
 import java.io.InputStream
@@ -78,16 +76,14 @@ fun clusterTopology(clusters: List<ClusterSpec>, random: RandomGenerator = Split
  * Helper method to convert a [ClusterSpec] into a list of [HostSpec]s.
  */
 private fun ClusterSpec.toHostSpecs(random: RandomGenerator): List<HostSpec> {
-    // TODO: maybe add CPU and GPU presets later
-//    val cpuSpeed = cpuSpeed // TODO: remove? not sure why is this needed
     val memoryPerHost = memCapacityPerHost.roundToLong()
 
     val unknownCpuProcessingNode = ProcessingNode("unknown", "unknown", "unknown", cpuCountPerHost)
     val virtualGpuCapacity = (gpuCapacity * gpuCount) / hostCount;
-    val unknownMemoryUnit = MemoryUnit("unknown", "unknown", -1.0, memoryPerHost) // TODO: Why is the speed -1?
+    val unknownMemoryUnit = MemoryUnit("unknown", "unknown", -1.0, memoryPerHost)
 
     val cpuCores = List(cpuCountPerHost) { coreId -> ProcessingUnit(unknownCpuProcessingNode, coreId, cpuCapacity) }
-    val vGpus = List(1) { gpuId -> GraphicsProcessingUnit("unknown", "unknown", "unknown", virtualGpuCapacity) } // TODO: currently we added support for one vGPU, that could be changed later
+    val vGpus = List(1) { _ -> GraphicsProcessingUnit("unknown", "unknown", "unknown", virtualGpuCapacity) } // currently we added support for one vGPU, that could be changed later
 
     val machineModel = MachineModel(
         cpuCores,

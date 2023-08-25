@@ -15,7 +15,7 @@ object CloudGamingTraceGenerator {
      * @param hours The number of hours the trace should have.
      * @param usersPerHour A list of the number of players per hour, should have the same number of entries as 'hours'.
      * @param cpuCount The number of CPU cores that is provisioned for each VM.
-     * @param cpuUsage The cpu usage of every vm (TODO: make it more flexiable later?).
+     * @param cpuUsage The cpu usage of every vm
      * @param cpuCap The cpu capacity in Mhz
      * @param gpuCount The number of vGPUs that is provisioned for each VM. For now it will always be one
      * @param gpuUsage The GPU usage of every VM.
@@ -35,8 +35,6 @@ object CloudGamingTraceGenerator {
         memCap: Long,
         outputDir: String
     ) {
-        //TODO: validate number of users is same as number of hours
-
         // Generate trace entries for each hour
         for (hour in 0 until hours) {
             val timestamp = Instant.now().toEpochMilli() + (hour * (3600000))

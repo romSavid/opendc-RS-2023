@@ -98,7 +98,7 @@ public suspend fun ComputeService.replay(
                             entry.cpuCount,
                             entry.gpuCapacity,
                             entry.memCapacity,
-                            meta = if (entry.cpuCapacity > 0.0) mapOf("cpu-capacity" to entry.cpuCapacity) else emptyMap() // TODO: should I add gpu here?
+                            meta = if (entry.cpuCapacity > 0.0) mapOf("cpu-capacity" to entry.cpuCapacity) else emptyMap()
                         ),
                         meta = meta
                     )

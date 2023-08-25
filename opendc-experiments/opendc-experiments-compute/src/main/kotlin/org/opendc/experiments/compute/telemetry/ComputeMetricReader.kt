@@ -101,7 +101,7 @@ public class ComputeMetricReader(
 
                     for (server in service.servers) {
                         val reader = serverTableReaders.computeIfAbsent(server) { ServerTableReaderImpl(service, it) }
-                        reader.record(now) // TODO: why does now returns 1970?
+                        reader.record(now)
                         monitor.record(reader)
                         reader.reset()
                     }

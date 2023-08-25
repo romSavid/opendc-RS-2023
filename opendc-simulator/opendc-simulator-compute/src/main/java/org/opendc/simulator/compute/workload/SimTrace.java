@@ -94,7 +94,6 @@ public final class SimTrace {
             throw new IllegalArgumentException("Invalid number of core entries");
         }
 
-        // TODO: make simpler if I get the time
         this.cpuUsageCol = cpuUsageCol;
         this.gpuUsageCol = gpuUsage;
         this.deadlineCol = deadlineCol;
@@ -194,10 +193,9 @@ public final class SimTrace {
             double[] cpuUsageCol = this.cpuUsageCol;
             double[] gpuUsageCol = this.gpuUsageCol;
 
-            // TODO: this should be enough for all columns, but test and make sure
             if (size == cpuUsageCol.length) {
                 grow();
-                cpuUsageCol = this.cpuUsageCol; // TODO: not clear why this is done here, maybe remove
+                cpuUsageCol = this.cpuUsageCol;
                 gpuUsageCol = this.gpuUsageCol;
             }
 
@@ -211,7 +209,6 @@ public final class SimTrace {
 
         /**
          * Add a fragment to the trace.
-         * TODO: This is a quickfix, make sure this didn't break anything else
          * @param deadline The timestamp at which the fragment ends (in epoch millis).
          * @param cpuUsage The CPU usage at this fragment.
          * @param cpuCores The number of CPU cores used during this fragment.
@@ -225,10 +222,9 @@ public final class SimTrace {
             double[] cpuUsageCol = this.cpuUsageCol;
             double[] gpuUsageCol = this.gpuUsageCol;
 
-            // TODO: this should be enough for all columns, but test and make sure
             if (size == cpuUsageCol.length) {
                 grow();
-                cpuUsageCol = this.cpuUsageCol; // TODO: not clear why this is done here, maybe remove
+                cpuUsageCol = this.cpuUsageCol;
                 gpuUsageCol = this.gpuUsageCol;
             }
 
@@ -320,9 +316,6 @@ public final class SimTrace {
         @Override
         public void onStart(SimMachineContext ctx) {
             final WorkloadStageLogic logic;
-            // TODO: to keep it simple, if there are GPUs it goes straight to MultiWorkloadLogic. Might need to be changed later
-            // TODO: Also, then SingleWorkloadLogic implementation is not changed. Verify later that this is ok.
-            // TODO 3: Now with my new implementation, not sure how many GPUs will get here. shouldn't be more than 1.
             if (ctx.getCpus().size() == 1 && ctx.getGpus().size() == 0) {
                 logic = new SingleWorkloadLogic(ctx, offset, cpuUsageCol, deadlineCol, size, index);
             } else {
@@ -460,7 +453,7 @@ public final class SimTrace {
         private final OutPort[] gpuOutputs;
         private int index;
         private final int cpuCoreCount;
-        private final int gpuCount; // TODO: to not break the implementation for now. But not sure it makes sense
+        private final int gpuCount;
 
         private final long offset;
         private final double[] cpuUsageCol;
@@ -545,7 +538,6 @@ public final class SimTrace {
 
             this.index = index;
 
-            // TODO: consider adding a nice function that removes the clutter as this is double code
             int cpuCores = Math.min(cpuCoreCount, cpuCoresCol[index]);
             float cpuUsage = (float) cpuUsageCol[index] / cpuCores;
 

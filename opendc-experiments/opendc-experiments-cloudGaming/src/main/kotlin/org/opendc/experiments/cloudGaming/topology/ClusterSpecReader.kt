@@ -71,7 +71,7 @@ class ClusterSpecReader {
                 entry.cpuCoresCount,
                 entry.cpuCapacity * 1000, // Convert to MHz
                 entry.gpuCount,
-                entry.gpuCapacity * 1000, // Convert to MHz // TODO: see if this conversion is needed
+                entry.gpuCapacity * 1000, // Convert to MHz
                 entry.memCapacity * 1000, // Convert to MiB
                 entry.hostCount,
                 (entry.memCapacity * 1000) / entry.hostCount, // Convert to MiB and divide by host count

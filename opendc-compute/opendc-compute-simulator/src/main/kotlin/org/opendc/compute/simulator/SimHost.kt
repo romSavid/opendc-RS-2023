@@ -30,8 +30,10 @@ import org.opendc.compute.service.driver.HostListener
 import org.opendc.compute.service.driver.HostModel
 import org.opendc.compute.service.driver.HostState
 import org.opendc.compute.service.driver.telemetry.GuestCpuStats
+import org.opendc.compute.service.driver.telemetry.GuestGpuStats
 import org.opendc.compute.service.driver.telemetry.GuestSystemStats
 import org.opendc.compute.service.driver.telemetry.HostCpuStats
+import org.opendc.compute.service.driver.telemetry.HostGpuStats
 import org.opendc.compute.service.driver.telemetry.HostSystemStats
 import org.opendc.compute.simulator.internal.DefaultWorkloadMapper
 import org.opendc.compute.simulator.internal.Guest
@@ -262,15 +264,11 @@ public class SimHost(
         )
     }
 
-    public fun getGpuStats(): HostCpuStats { // TODO: create HostGpuStats and remove stats that are irrelevant (also from the counters probably, like gpuStealTime?)
+    public fun getGpuStats(): HostGpuStats {
         val counters = hypervisor.counters
         counters.sync()
 
-        return HostCpuStats(
-            counters.gpuActiveTime / 1000L,
-            counters.gpuIdleTime / 1000L,
-            counters.gpuStealTime / 1000L,
-            counters.gpuLostTime / 1000L,
+        return HostGpuStats(
             hypervisor.gpuCapacity,
             hypervisor.gpuDemand,
             hypervisor.gpuUsage,
@@ -283,7 +281,7 @@ public class SimHost(
         return guest.getCpuStats()
     }
 
-    public fun getGpuStats(server: Server): GuestCpuStats { // TODO: Create guestGpuStats?
+    public fun getGpuStats(server: Server): GuestGpuStats {
         val guest = requireNotNull(guests[server]) { "Unknown server ${server.uid} at host $uid" }
         return guest.getGpuStats()
     }
@@ -371,10 +369,15 @@ public class SimHost(
         val processingNode = ProcessingNode(originalNode.vendor, originalNode.modelName, originalNode.architecture, cpuCount)
         val processingUnits = (0 until cpuCount).map { ProcessingUnit(processingNode, it, cpuCapacity) }
 
-        val originalGpu = machine.model.gpus[0] // TODO: need to add a check if not empty?
-        val gpuCapacity = (this.meta["gpu-capacity"] as? Double ?: Double.MAX_VALUE).coerceAtMost(originalGpu.frequency) // TODO: this gpu-capacity part makes me think I need to change my meta pasring
-        val graphicsProcessingUnits = listOf(GraphicsProcessingUnit(originalGpu.vendor, originalGpu.modelName, originalGpu.architecture,
-            gpuCapacity))
+        var graphicsProcessingUnits: List<GraphicsProcessingUnit>
+        if (machine.model.gpus.isNotEmpty()) {
+            val originalGpu = machine.model.gpus[0]
+            val gpuCapacity = (this.meta["gpu-capacity"] as? Double ?: Double.MAX_VALUE).coerceAtMost(originalGpu.frequency)
+            graphicsProcessingUnits = listOf(GraphicsProcessingUnit(originalGpu.vendor, originalGpu.modelName, originalGpu.architecture, gpuCapacity))
+        }
+        else {
+            graphicsProcessingUnits = listOf()
+        }
 
         val memoryUnits = listOf(MemoryUnit("Generic", "Generic", 3200.0, memorySize))
 

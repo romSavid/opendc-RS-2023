@@ -57,7 +57,7 @@ public final class OutPort implements Outlet {
     }
 
     /**
-     * Return the input of the {@link OutPort}. // TODO: make smarter later
+     * Return the input of the {@link OutPort}.
      */
     public InPort getInPort() {
         return input;

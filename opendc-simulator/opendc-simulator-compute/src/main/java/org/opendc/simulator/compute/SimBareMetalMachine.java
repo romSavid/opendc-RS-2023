@@ -381,7 +381,6 @@ public final class SimBareMetalMachine extends SimAbstractMachine {
     /**
      * A GPU {@link SimGraphicsProcessingUnit} of a bare-metal machine.
      */
-    // TODO: Might be redundent as it changes almost nothing about Cpu. Check.
     private static final class Gpu implements SimGraphicsProcessingUnit {
         private final SimPsu psu;
         private final GraphicsProcessingUnit model;

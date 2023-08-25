@@ -26,6 +26,7 @@ import mu.KotlinLogging
 import org.opendc.compute.api.Server
 import org.opendc.compute.api.ServerState
 import org.opendc.compute.service.driver.telemetry.GuestCpuStats
+import org.opendc.compute.service.driver.telemetry.GuestGpuStats
 import org.opendc.compute.service.driver.telemetry.GuestSystemStats
 import org.opendc.compute.simulator.SimHost
 import org.opendc.compute.simulator.SimWorkloadMapper
@@ -158,16 +159,13 @@ internal class Guest(
     /**
      * Obtain the GPU statistics of this guest.
      */
-    fun getGpuStats(): GuestCpuStats { // TODO: Create GuestGpuStats?
+    fun getGpuStats(): GuestGpuStats {
         val counters = machine.counters
         counters.sync()
 
-        return GuestCpuStats(
-            counters.gpuActiveTime / 1000L,
-            counters.gpuIdleTime / 1000L,
-            counters.gpuStealTime / 1000L,
-            counters.gpuLostTime / 1000L,
+        return GuestGpuStats(
             machine.gpuCapacity,
+            machine.gpuDemand,
             machine.gpuUsage,
             machine.gpuUsage / _gpuLimit
         )
